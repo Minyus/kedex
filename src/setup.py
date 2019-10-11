@@ -8,7 +8,7 @@ package_name = "kedex"
 setup(
     name=package_name,
     packages=[package_name],
-    version="0.0.1",
+    version="0.0.2",
     license="Apache Software License (Apache 2.0)",
     author="Yusuke Minami",
     author_email="me@minyus.github.com",
