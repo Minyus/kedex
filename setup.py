@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 from codecs import open
 from os import path
 import re
@@ -7,8 +7,9 @@ package_name = "kedex"
 
 setup(
     name=package_name,
-    packages=[package_name],
-    version="0.0.3",
+    packages=find_packages(where="src", exclude=["tests"]),
+    package_dir={"": "src"},
+    version="0.0.4",
     license="Apache Software License (Apache 2.0)",
     author="Yusuke Minami",
     author_email="me@minyus.github.com",

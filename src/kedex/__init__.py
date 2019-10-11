@@ -14,4 +14,4 @@ from .mlflow_context.mlflow_flexible_context import *  # NOQA
 from .pipeline.pipeline import *  # NOQA
 from .pipeline.sub_pipeline import *  # NOQA
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
