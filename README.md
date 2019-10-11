@@ -1,4 +1,4 @@
 # Kedex
 
-Kedro extension for quick, reusable, readable, and organized Machine Learning projects
+Kedro extension for quick, reusable, and readable coding
 
