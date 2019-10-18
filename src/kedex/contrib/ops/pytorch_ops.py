@@ -5,7 +5,7 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from tqdm import tqdm
 
 
-def train_model(
+def pytorch_train(
     train_params  # type: dict
 ):
     def _train_model(model, train_dataset, val_dataset, parameters):
@@ -74,3 +74,13 @@ def train_model(
         return model
 
     return _train_model
+
+
+class PytorchSequential(torch.nn.Sequential):
+    def __init__(self, modules):
+        super().__init__(*modules)
+
+
+class PytorchFlatten(torch.nn.Module):
+    def forward(self, input):
+        return input.view(input.size(0), -1)
