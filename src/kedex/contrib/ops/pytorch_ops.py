@@ -61,7 +61,7 @@ def pytorch_train(
             evaluator.run(val_loader)
             epoch_dict = dict(epoch=engine.state.epoch)
             metrics_dict = dict(metrics=evaluator.state.metrics)
-            report_str = "[Training Results]" + " {} | {}".format(
+            report_str = "[Validation Results]" + " {} | {}".format(
                 epoch_dict, metrics_dict
             )
             tqdm.write(report_str)
