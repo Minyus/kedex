@@ -6,12 +6,22 @@ from ignite.metrics import RunningAverage
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 import numpy as np
 from pkg_resources import parse_version
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def pytorch_train(
     train_params,  # type: dict
     mlflow_logging=True,  # type: bool
 ):
+    if mlflow_logging:
+        try:
+            import mlflow
+        except ImportError:
+            log.warning("Failed to import mlflow. MLflow logging is disabled.")
+            mlflow_logging = False
+
     if mlflow_logging:
         import ignite
 
