@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import RunningAverage
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
+import numpy as np
 from pkg_resources import parse_version
 
 
@@ -38,6 +39,18 @@ def pytorch_train(
         optim_params = train_params.get("optim_params", dict())
         loss_fn = train_params.get("loss_fn")
         metrics = train_params.get("metrics")
+
+        seed = train_params.get("seed")
+        cudnn_deterministic = train_params.get("cudnn_deterministic")
+        cudnn_benchmark = train_params.get("cudnn_benchmark")
+
+        if seed:
+            torch.manual_seed(seed)
+            np.random.seed(seed)
+        if cudnn_deterministic:
+            torch.backends.cudnn.deterministic = cudnn_deterministic
+        if cudnn_benchmark:
+            torch.backends.cudnn.benchmark = cudnn_benchmark
 
         optimizer = optim(model.parameters(), **optim_params)
 
