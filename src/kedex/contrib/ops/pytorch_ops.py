@@ -40,8 +40,8 @@ def pytorch_train(
 
     def _pytorch_train(model, train_dataset, val_dataset, parameters):
 
-        train_batch_size = train_params.get("train_batch_size")
-        val_batch_size = train_params.get("val_batch_size")
+        train_data_loader_params = train_params.get("train_data_loader_params", dict())
+        val_data_loader_params = train_params.get("val_data_loader_params", dict())
         epochs = train_params.get("epochs")
         progress_update = train_params.get("progress_update", dict())
 
@@ -75,10 +75,9 @@ def pytorch_train(
             model, metrics=metrics, device=device
         )
 
-        train_loader = DataLoader(
-            train_dataset, batch_size=train_batch_size, shuffle=True
-        )
-        val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False)
+        train_data_loader_params.setdefault("shuffle", True)
+        train_loader = DataLoader(train_dataset, **train_data_loader_params)
+        val_loader = DataLoader(val_dataset, **val_data_loader_params)
 
         pbar = None
         if isinstance(progress_update, dict):
@@ -100,22 +99,20 @@ def pytorch_train(
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
+
             logging_params = {
                 "train_n_samples": len(train_dataset),
                 "val_n_samples": len(val_dataset),
-                "train_batch_size": train_batch_size,
-                "val_batch_size": val_batch_size,
                 "optim": optim.__name__,
                 "loss_fn": loss_fn.__name__,
                 "pytorch_version": torch.__version__,
                 "ignite_version": ignite.__version__,
             }
-            logging_optim_params = {
-                k: ("{}".format(v) if isinstance(v, (tuple, list, dict)) else v)
-                for k, v in optim_params.items()
-            }
-            logging_params.update(logging_optim_params)
+            logging_params.update(_loggable_dict(train_data_loader_params, "train"))
+            logging_params.update(_loggable_dict(val_data_loader_params, "val"))
+            logging_params.update(_loggable_dict(optim_params))
             mlflow_logger.log_params(logging_params)
+
             mlflow_logger.attach(
                 evaluator_train,
                 log_handler=OutputHandler(
@@ -147,6 +144,15 @@ def _get_report_str(engine, evaluator, tag=""):
         engine.state.epoch, tag, evaluator.state.metrics
     )
     return report_str
+
+
+def _loggable_dict(d, prefix=None):
+    return {
+        ("{}_{}".format(prefix, k) if prefix else k): (
+            "{}".format(v) if isinstance(v, (tuple, list, dict, set)) else v
+        )
+        for k, v in d.items()
+    }
 
 
 class PytorchSequential(torch.nn.Sequential):
