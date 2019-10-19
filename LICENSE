@@ -1,6 +1,7 @@
 Copyright 2019 Yusuke Minami (@Minyus)
 
-The base code for `run` method of `OnlyMissingOptionContext` class and
+The base code for
+`run` method of `OnlyMissingOptionContext` class, `decorators.py`, and
 `.gitignore` file:
 Copyright 2018-2019 QuantumBlack Visual Analytics Limited
 
