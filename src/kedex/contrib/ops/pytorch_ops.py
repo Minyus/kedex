@@ -1,8 +1,8 @@
-from torch.utils.data import DataLoader
 import torch
+from torch.utils.data import DataLoader
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-
-from tqdm import tqdm
+from ignite.metrics import RunningAverage
+from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
 
 def pytorch_train(
@@ -13,7 +13,8 @@ def pytorch_train(
         train_batch_size = train_params.get("train_batch_size")
         val_batch_size = train_params.get("val_batch_size")
         epochs = train_params.get("epochs")
-        log_interval = train_params.get("log_interval")
+        progress_params = train_params.get("progress_params", dict())
+
         optim = train_params.get("optim")
         optim_params = train_params.get("optim_params", dict())
         loss_fn = train_params.get("loss_fn")
@@ -32,48 +33,35 @@ def pytorch_train(
         )
         val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False)
 
-        desc = "ITERATION - loss: {:.2f}"
-        pbar = tqdm(
-            initial=0, leave=False, total=len(train_loader), desc=desc.format(0)
-        )
+        RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
 
-        @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_loss(engine):
-            iter = (engine.state.iteration - 1) % len(train_loader) + 1
-
-            if iter % log_interval == 0:
-                pbar.desc = desc.format(engine.state.output)
-                pbar.update(log_interval)
+        progress_params.setdefault("persist", True)
+        progress_params.setdefault("desc", "")
+        pbar = ProgressBar(**progress_params)
+        pbar.attach(trainer, ["loss"])
 
         @trainer.on(Events.EPOCH_COMPLETED)
         def log_training_results(engine):
-            pbar.refresh()
             evaluator.run(train_loader)
-            epoch_dict = dict(epoch=engine.state.epoch)
-            metrics_dict = dict(metrics=evaluator.state.metrics)
-            report_str = "[Training Results]" + " {} | {}".format(
-                epoch_dict, metrics_dict
-            )
-            tqdm.write(report_str)
+            pbar.log_message(_get_report_str(engine, evaluator, "Train Data"))
 
         @trainer.on(Events.EPOCH_COMPLETED)
         def log_validation_results(engine):
             evaluator.run(val_loader)
-            epoch_dict = dict(epoch=engine.state.epoch)
-            metrics_dict = dict(metrics=evaluator.state.metrics)
-            report_str = "[Validation Results]" + " {} | {}".format(
-                epoch_dict, metrics_dict
-            )
-            tqdm.write(report_str)
-
-            pbar.n = pbar.last_print_n = 0
+            pbar.log_message(_get_report_str(engine, evaluator, "Val Data"))
 
         trainer.run(train_loader, max_epochs=epochs)
-        pbar.close()
 
         return model
 
     return _train_model
+
+
+def _get_report_str(engine, evaluator, data_desc=""):
+    report_str = "[Epoch: {} | {} | Metrics: {}]".format(
+        engine.state.epoch, data_desc, evaluator.state.metrics
+    )
+    return report_str
 
 
 class PytorchSequential(torch.nn.Sequential):
