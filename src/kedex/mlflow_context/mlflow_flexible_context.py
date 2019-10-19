@@ -3,6 +3,7 @@ from kedex.context.flexible_context import FlexibleContext
 from datetime import datetime, timedelta
 from mlflow import log_artifact, log_metric, log_param
 from pathlib import Path
+import time
 from typing import Any, Dict, Iterable, Optional, Union  # NOQA
 import logging
 
@@ -43,7 +44,7 @@ class MLflowContext(KedroContext):
         **kwargs  # type: Any
     ):
         parameters = self.catalog._data_sets["parameters"].load()
-        mlflow_logging_params = parameters.get("mlflow_logging_params")
+        mlflow_logging_params = parameters.get("MLFLOW_LOGGING_CONFIG")
         if mlflow_logging_params:
             self.offset_hours = (
                 mlflow_logging_params.get("offset_hours") or self.offset_hours
@@ -57,11 +58,13 @@ class MLflowContext(KedroContext):
 
         log_metric("__t0", get_timestamp_int(offset_hours=self.offset_hours))
         log_param("time_begin", get_timestamp(offset_hours=self.offset_hours))
+        time_begin = time.time()
 
         nodes = super().run(*args, **kwargs)
 
         log_metric("__t1", get_timestamp_int(offset_hours=self.offset_hours))
         log_param("time_end", get_timestamp(offset_hours=self.offset_hours))
+        log_metric("__time", (time.time() - time_begin))
 
         for d in self.logging_artifacts:
             ds = getattr(self.catalog.datasets, d, None)
