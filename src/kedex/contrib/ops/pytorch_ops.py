@@ -77,10 +77,26 @@ def pytorch_train(
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
+            logging_params = {
+                "train_n_samples": len(train_dataset),
+                "val_n_samples": len(val_dataset),
+                "train_batch_size": train_batch_size,
+                "val_batch_size": val_batch_size,
+                "optim": optim.__name__,
+                "loss_fn": loss_fn.__name__,
+                "pytorch_version": torch.__version__,
+                "ignite_version": ignite.__version__,
+            }
+            logging_optim_params = {
+                k: ("{}".format(v) if isinstance(v, (tuple, list, dict)) else v)
+                for k, v in optim_params.items()
+            }
+            logging_params.update(logging_optim_params)
+            mlflow_logger.log_params(logging_params)
             mlflow_logger.attach(
                 evaluator_train,
                 log_handler=OutputHandler(
-                    tag="Train",
+                    tag="train",
                     metric_names=list(metrics.keys()),
                     global_step_transform=global_step_from_engine(trainer),
                 ),
@@ -89,7 +105,7 @@ def pytorch_train(
             mlflow_logger.attach(
                 evaluator_val,
                 log_handler=OutputHandler(
-                    tag="Val",
+                    tag="val",
                     metric_names=list(metrics.keys()),
                     global_step_transform=global_step_from_engine(trainer),
                 ),
