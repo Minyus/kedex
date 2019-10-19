@@ -1,19 +1,38 @@
 import torch
+
 from torch.utils.data import DataLoader
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import RunningAverage
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
+from pkg_resources import parse_version
 
 
 def pytorch_train(
-    train_params  # type: dict
+    train_params,  # type: dict
+    mlflow_logging=True,  # type: bool
 ):
-    def _train_model(model, train_dataset, val_dataset, parameters):
+    if mlflow_logging:
+        import ignite
+
+        if parse_version(ignite.__version__) >= parse_version("0.2.1"):
+            from ignite.contrib.handlers.mlflow_logger import (
+                MLflowLogger,
+                OutputHandler,
+                global_step_from_engine,
+            )
+        else:
+            from .ignite.contrib.handlers.mlflow_logger import (
+                MLflowLogger,
+                OutputHandler,
+                global_step_from_engine,
+            )
+
+    def _pytorch_train(model, train_dataset, val_dataset, parameters):
 
         train_batch_size = train_params.get("train_batch_size")
         val_batch_size = train_params.get("val_batch_size")
         epochs = train_params.get("epochs")
-        progress_params = train_params.get("progress_params", dict())
+        progress_update = train_params.get("progress_update", dict())
 
         optim = train_params.get("optim")
         optim_params = train_params.get("optim_params", dict())
@@ -26,40 +45,67 @@ def pytorch_train(
         trainer = create_supervised_trainer(
             model, optimizer, loss_fn=loss_fn, device=device
         )
-        evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
+        evaluator_train = create_supervised_evaluator(
+            model, metrics=metrics, device=device
+        )
+        evaluator_val = create_supervised_evaluator(
+            model, metrics=metrics, device=device
+        )
 
         train_loader = DataLoader(
             train_dataset, batch_size=train_batch_size, shuffle=True
         )
         val_loader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=False)
 
-        RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
+        pbar = None
+        if isinstance(progress_update, dict):
+            RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
 
-        progress_params.setdefault("persist", True)
-        progress_params.setdefault("desc", "")
-        pbar = ProgressBar(**progress_params)
-        pbar.attach(trainer, ["loss"])
-
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def log_training_results(engine):
-            evaluator.run(train_loader)
-            pbar.log_message(_get_report_str(engine, evaluator, "Train Data"))
+            progress_update.setdefault("persist", True)
+            progress_update.setdefault("desc", "")
+            pbar = ProgressBar(**progress_update)
+            pbar.attach(trainer, ["loss"])
 
         @trainer.on(Events.EPOCH_COMPLETED)
-        def log_validation_results(engine):
-            evaluator.run(val_loader)
-            pbar.log_message(_get_report_str(engine, evaluator, "Val Data"))
+        def log_evaluation_results(engine):
+            evaluator_train.run(train_loader)
+            if pbar:
+                pbar.log_message(_get_report_str(engine, evaluator_train, "Train Data"))
+            evaluator_val.run(val_loader)
+            if pbar:
+                pbar.log_message(_get_report_str(engine, evaluator_val, "Val Data"))
+
+        if mlflow_logging:
+            mlflow_logger = MLflowLogger()
+            mlflow_logger.attach(
+                evaluator_train,
+                log_handler=OutputHandler(
+                    tag="Train",
+                    metric_names=list(metrics.keys()),
+                    global_step_transform=global_step_from_engine(trainer),
+                ),
+                event_name=Events.EPOCH_COMPLETED,
+            )
+            mlflow_logger.attach(
+                evaluator_val,
+                log_handler=OutputHandler(
+                    tag="Val",
+                    metric_names=list(metrics.keys()),
+                    global_step_transform=global_step_from_engine(trainer),
+                ),
+                event_name=Events.EPOCH_COMPLETED,
+            )
 
         trainer.run(train_loader, max_epochs=epochs)
 
         return model
 
-    return _train_model
+    return _pytorch_train
 
 
-def _get_report_str(engine, evaluator, data_desc=""):
+def _get_report_str(engine, evaluator, tag=""):
     report_str = "[Epoch: {} | {} | Metrics: {}]".format(
-        engine.state.epoch, data_desc, evaluator.state.metrics
+        engine.state.epoch, tag, evaluator.state.metrics
     )
     return report_str
 
