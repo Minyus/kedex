@@ -76,6 +76,7 @@ def pytorch_train(
         )
 
         train_data_loader_params.setdefault("shuffle", True)
+        train_data_loader_params.setdefault("drop_last", True)
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
         val_loader = DataLoader(val_dataset, **val_data_loader_params)
 
