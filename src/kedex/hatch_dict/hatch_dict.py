@@ -189,12 +189,26 @@ def dot_flatten(d):
     return flatten(d, reducer=dot_reducer)
 
 
+def pass_(*argsignore, **kwargsignore):
+    return None
+
+
+def pass_through(*args, **kwargs):
+    return args[0] if args else list(kwargs.values())[0] if kwargs else None
+
+
+def pass_func(arg):
+    def _pass_func(*argsignore, **kwargsignore):
+        return arg
+
+    return _pass_func
+
+
 def _builtin_funcs():
     return dict(
-        pass_=lambda *args, **kwargs: None,
-        pass_through=lambda *args, **kwargs: (
-            args[0] if args else list(kwargs.values())[0] if kwargs else None
-        ),
+        pass_=pass_,
+        pass_through=pass_through,
+        pass_func=pass_func,
         abs=lambda arg: abs(arg),
         all=lambda arg: all(arg),
         any=lambda arg: any(arg),
