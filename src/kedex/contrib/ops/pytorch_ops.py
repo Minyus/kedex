@@ -38,7 +38,7 @@ def pytorch_train(
                 global_step_from_engine,
             )
 
-    def _pytorch_train(model, train_dataset, val_dataset, parameters):
+    def _pytorch_train(model, train_dataset, val_dataset=None, parameters=None):
 
         train_data_loader_params = train_params.get("train_data_loader_params", dict())
         val_data_loader_params = train_params.get("val_data_loader_params", dict())
@@ -49,6 +49,9 @@ def pytorch_train(
         optim_params = train_params.get("optim_params", dict())
         loss_fn = train_params.get("loss_fn")
         metrics = train_params.get("metrics")
+
+        evaluate_train_data = train_params.get("evaluate_train_data")
+        evaluate_val_data = train_params.get("evaluate_val_data")
 
         seed = train_params.get("seed")
         cudnn_deterministic = train_params.get("cudnn_deterministic")
@@ -68,17 +71,21 @@ def pytorch_train(
         trainer = create_supervised_trainer(
             model, optimizer, loss_fn=loss_fn, device=device
         )
-        evaluator_train = create_supervised_evaluator(
-            model, metrics=metrics, device=device
-        )
-        evaluator_val = create_supervised_evaluator(
-            model, metrics=metrics, device=device
-        )
 
         train_data_loader_params.setdefault("shuffle", True)
         train_data_loader_params.setdefault("drop_last", True)
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
-        val_loader = DataLoader(val_dataset, **val_data_loader_params)
+
+        if evaluate_train_data:
+            evaluator_train = create_supervised_evaluator(
+                model, metrics=metrics, device=device
+            )
+
+        if evaluate_val_data:
+            val_loader = DataLoader(val_dataset, **val_data_loader_params)
+            evaluator_val = create_supervised_evaluator(
+                model, metrics=metrics, device=device
+            )
 
         pbar = None
         if isinstance(progress_update, dict):
@@ -91,12 +98,16 @@ def pytorch_train(
 
         @trainer.on(Events.EPOCH_COMPLETED)
         def log_evaluation_results(engine):
-            evaluator_train.run(train_loader)
-            if pbar:
-                pbar.log_message(_get_report_str(engine, evaluator_train, "Train Data"))
-            evaluator_val.run(val_loader)
-            if pbar:
-                pbar.log_message(_get_report_str(engine, evaluator_val, "Val Data"))
+            if evaluate_train_data:
+                evaluator_train.run(train_loader)
+                if pbar:
+                    pbar.log_message(
+                        _get_report_str(engine, evaluator_train, "Train Data")
+                    )
+            if evaluate_val_data:
+                evaluator_val.run(val_loader)
+                if pbar:
+                    pbar.log_message(_get_report_str(engine, evaluator_val, "Val Data"))
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
@@ -114,24 +125,26 @@ def pytorch_train(
             logging_params.update(_loggable_dict(optim_params))
             mlflow_logger.log_params(logging_params)
 
-            mlflow_logger.attach(
-                evaluator_train,
-                log_handler=OutputHandler(
-                    tag="train",
-                    metric_names=list(metrics.keys()),
-                    global_step_transform=global_step_from_engine(trainer),
-                ),
-                event_name=Events.EPOCH_COMPLETED,
-            )
-            mlflow_logger.attach(
-                evaluator_val,
-                log_handler=OutputHandler(
-                    tag="val",
-                    metric_names=list(metrics.keys()),
-                    global_step_transform=global_step_from_engine(trainer),
-                ),
-                event_name=Events.EPOCH_COMPLETED,
-            )
+            if evaluate_train_data:
+                mlflow_logger.attach(
+                    evaluator_train,
+                    log_handler=OutputHandler(
+                        tag="train",
+                        metric_names=list(metrics.keys()),
+                        global_step_transform=global_step_from_engine(trainer),
+                    ),
+                    event_name=Events.EPOCH_COMPLETED,
+                )
+            if evaluate_val_data:
+                mlflow_logger.attach(
+                    evaluator_val,
+                    log_handler=OutputHandler(
+                        tag="val",
+                        metric_names=list(metrics.keys()),
+                        global_step_transform=global_step_from_engine(trainer),
+                    ),
+                    event_name=Events.EPOCH_COMPLETED,
+                )
 
         trainer.run(train_loader, max_epochs=epochs)
 
