@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import DataLoader
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import RunningAverage
+from ignite.handlers import EarlyStopping
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 import numpy as np
 from pkg_resources import parse_version
@@ -49,6 +50,7 @@ def pytorch_train(
         optim_params = train_params.get("optim_params", dict())
         loss_fn = train_params.get("loss_fn")
         metrics = train_params.get("metrics")
+        early_stopping_params = train_params.get("early_stopping_params")
 
         evaluate_train_data = train_params.get("evaluate_train_data")
         evaluate_val_data = train_params.get("evaluate_val_data")
@@ -86,6 +88,23 @@ def pytorch_train(
             evaluator_val = create_supervised_evaluator(
                 model, metrics=metrics, device=device
             )
+            if early_stopping_params:
+                assert isinstance(early_stopping_params, dict)
+                metric = early_stopping_params.get("metric")
+                assert metric in metrics
+                minimize = early_stopping_params.get("minimize")
+                patience = early_stopping_params.get("patience", 1)
+
+                def score_function(engine):
+                    m = engine.state.metrics.get(metric)
+                    return -m if minimize else m
+
+                es = EarlyStopping(
+                    patience=patience, score_function=score_function, trainer=trainer
+                )
+                evaluator_val.add_event_handler(Events.COMPLETED, es)
+        elif early_stopping_params:
+            log.warning("Set evaluate_val_data = True to use Early Stopping.")
 
         pbar = None
         if isinstance(progress_update, dict):
@@ -96,18 +115,25 @@ def pytorch_train(
             pbar = ProgressBar(**progress_update)
             pbar.attach(trainer, ["loss"])
 
-        @trainer.on(Events.EPOCH_COMPLETED)
-        def log_evaluation_results(engine):
-            if evaluate_train_data:
+        if evaluate_train_data:
+
+            def log_evaluation_train_data(engine):
                 evaluator_train.run(train_loader)
                 if pbar:
                     pbar.log_message(
                         _get_report_str(engine, evaluator_train, "Train Data")
                     )
-            if evaluate_val_data:
+
+            trainer.add_event_handler(Events.EPOCH_COMPLETED, log_evaluation_train_data)
+
+        if evaluate_val_data:
+
+            def log_evaluation_val_data(engine):
                 evaluator_val.run(val_loader)
                 if pbar:
                     pbar.log_message(_get_report_str(engine, evaluator_val, "Val Data"))
+
+            trainer.add_event_handler(Events.EPOCH_COMPLETED, log_evaluation_val_data)
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
