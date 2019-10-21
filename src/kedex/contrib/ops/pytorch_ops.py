@@ -45,7 +45,7 @@ def pytorch_train(
         train_data_loader_params = train_params.get("train_data_loader_params", dict())
         val_data_loader_params = train_params.get("val_data_loader_params", dict())
         epochs = train_params.get("epochs")
-        progress_update = train_params.get("progress_update", dict())
+        progress_update = train_params.get("progress_update")
 
         optim = train_params.get("optim")
         optim_params = train_params.get("optim_params", dict())
@@ -123,33 +123,51 @@ def pytorch_train(
             trainer.add_event_handler(Events.ITERATION_COMPLETED, tl)
 
         pbar = None
-        if isinstance(progress_update, dict):
-            RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
-
+        if progress_update:
+            if not isinstance(progress_update, dict):
+                progress_update = dict()
             progress_update.setdefault("persist", True)
             progress_update.setdefault("desc", "")
             pbar = ProgressBar(**progress_update)
-            pbar.attach(trainer, ["loss"])
+            try:
+                RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
+                pbar.attach(trainer, ["loss"])
+            except Exception as e:
+                log.error(e, exc_info=True)
 
         if evaluate_train_data:
 
             def log_evaluation_train_data(engine):
                 evaluator_train.run(train_loader)
+                train_report = _get_report_str(engine, evaluator_train, "Train Data")
                 if pbar:
-                    pbar.log_message(
-                        _get_report_str(engine, evaluator_train, "Train Data")
-                    )
+                    pbar.log_message(train_report)
+                else:
+                    log.info(train_report)
 
-            trainer.add_event_handler(Events.EPOCH_COMPLETED, log_evaluation_train_data)
+            eval_train_event = (
+                Events[evaluate_train_data]
+                if isinstance(evaluate_train_data, str)
+                else Events.EPOCH_COMPLETED
+            )
+            trainer.add_event_handler(eval_train_event, log_evaluation_train_data)
 
         if evaluate_val_data:
 
             def log_evaluation_val_data(engine):
                 evaluator_val.run(val_loader)
+                val_report = _get_report_str(engine, evaluator_val, "Val Data")
                 if pbar:
-                    pbar.log_message(_get_report_str(engine, evaluator_val, "Val Data"))
+                    pbar.log_message(val_report)
+                else:
+                    log.info(val_report)
 
-            trainer.add_event_handler(Events.EPOCH_COMPLETED, log_evaluation_val_data)
+            eval_val_event = (
+                Events[evaluate_val_data]
+                if isinstance(evaluate_val_data, str)
+                else Events.EPOCH_COMPLETED
+            )
+            trainer.add_event_handler(eval_val_event, log_evaluation_val_data)
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
