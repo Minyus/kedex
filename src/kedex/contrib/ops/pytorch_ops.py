@@ -79,6 +79,9 @@ def pytorch_train(
 
         train_data_loader_params.setdefault("shuffle", True)
         train_data_loader_params.setdefault("drop_last", True)
+        train_data_loader_params["batch_size"] = _clip_batch_size(
+            train_data_loader_params.get("batch_size", 1), train_dataset, "train"
+        )
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
 
         if evaluate_train_data:
@@ -87,6 +90,9 @@ def pytorch_train(
             )
 
         if evaluate_val_data:
+            val_data_loader_params["batch_size"] = _clip_batch_size(
+                val_data_loader_params.get("batch_size", 1), val_dataset, "val"
+            )
             val_loader = DataLoader(val_dataset, **val_data_loader_params)
             evaluator_val = create_supervised_evaluator(
                 model, metrics=metrics, device=device
@@ -107,7 +113,9 @@ def pytorch_train(
                 )
                 evaluator_val.add_event_handler(Events.COMPLETED, es)
         elif early_stopping_params:
-            log.warning("Set evaluate_val_data = True to use Early Stopping.")
+            log.warning(
+                "Early Stopping is disabled because evaluate_val_data is not True."
+            )
 
         if time_limit:
             assert isinstance(time_limit, (int, float))
@@ -185,6 +193,19 @@ def pytorch_train(
         return model
 
     return _pytorch_train
+
+
+def _clip_batch_size(batch_size, dataset, tag=""):
+    dataset_size = len(dataset)
+    if batch_size > dataset_size:
+        log.warning(
+            "[{}] batch size ({}) is clipped to dataset size ({})".format(
+                tag, batch_size, dataset_size
+            )
+        )
+        return dataset_size
+    else:
+        return batch_size
 
 
 def _get_report_str(engine, evaluator, tag=""):
