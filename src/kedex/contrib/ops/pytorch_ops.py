@@ -6,6 +6,7 @@ from ignite.metrics import RunningAverage
 from ignite.handlers import EarlyStopping
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 import numpy as np
+import time
 from pkg_resources import parse_version
 import logging
 
@@ -50,10 +51,12 @@ def pytorch_train(
         optim_params = train_params.get("optim_params", dict())
         loss_fn = train_params.get("loss_fn")
         metrics = train_params.get("metrics")
-        early_stopping_params = train_params.get("early_stopping_params")
 
         evaluate_train_data = train_params.get("evaluate_train_data")
         evaluate_val_data = train_params.get("evaluate_val_data")
+
+        early_stopping_params = train_params.get("early_stopping_params")
+        time_limit = train_params.get("time_limit")
 
         seed = train_params.get("seed")
         cudnn_deterministic = train_params.get("cudnn_deterministic")
@@ -105,6 +108,11 @@ def pytorch_train(
                 evaluator_val.add_event_handler(Events.COMPLETED, es)
         elif early_stopping_params:
             log.warning("Set evaluate_val_data = True to use Early Stopping.")
+
+        if time_limit:
+            assert isinstance(time_limit, (int, float))
+            tl = TimeLimit(limit_sec=time_limit)
+            trainer.add_event_handler(Events.ITERATION_COMPLETED, tl)
 
         pbar = None
         if isinstance(progress_update, dict):
@@ -193,6 +201,20 @@ def _loggable_dict(d, prefix=None):
         )
         for k, v in d.items()
     }
+
+
+class TimeLimit:
+    def __init__(self, limit_sec=3600):
+        self.limit_sec = limit_sec
+        self.start_time = time.time()
+
+    def __call__(self, engine):
+        elapsed_time = time.time() - self.start_time
+        if elapsed_time > self.limit_sec:
+            log.warning(
+                "Reached the time limit: {} sec. Stop training".format(self.limit_sec)
+            )
+            engine.terminate()
 
 
 class PytorchSequential(torch.nn.Sequential):
