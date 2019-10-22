@@ -130,8 +130,10 @@ def pytorch_train(
             progress_update.setdefault("desc", "")
             pbar = ProgressBar(**progress_update)
             try:
-                RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
-                pbar.attach(trainer, ["loss"])
+                RunningAverage(output_transform=lambda x: x, alpha=0.98).attach(
+                    trainer, "loss_ema"
+                )
+                pbar.attach(trainer, ["loss_ema"])
             except Exception as e:
                 log.error(e, exc_info=True)
 
@@ -185,6 +187,19 @@ def pytorch_train(
             logging_params.update(_loggable_dict(optim_params))
             mlflow_logger.log_params(logging_params)
 
+            RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
+                trainer, "loss_mean"
+            )
+            mlflow_logger.attach(
+                trainer,
+                log_handler=OutputHandler(
+                    tag="batch",
+                    metric_names=["loss_mean"],
+                    global_step_transform=global_step_from_engine(trainer),
+                ),
+                event_name=Events.ITERATION_COMPLETED,
+            )
+
             if evaluate_train_data:
                 mlflow_logger.attach(
                     evaluator_train,
@@ -193,7 +208,7 @@ def pytorch_train(
                         metric_names=list(metrics.keys()),
                         global_step_transform=global_step_from_engine(trainer),
                     ),
-                    event_name=Events.EPOCH_COMPLETED,
+                    event_name=Events.COMPLETED,
                 )
             if evaluate_val_data:
                 mlflow_logger.attach(
@@ -203,7 +218,7 @@ def pytorch_train(
                         metric_names=list(metrics.keys()),
                         global_step_transform=global_step_from_engine(trainer),
                     ),
-                    event_name=Events.EPOCH_COMPLETED,
+                    event_name=Events.COMPLETED,
                 )
 
         trainer.run(train_loader, max_epochs=epochs)
