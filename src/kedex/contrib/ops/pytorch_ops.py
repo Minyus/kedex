@@ -302,9 +302,17 @@ class TimeLimit:
 class ParamSchedulerSavingAsMetricMixIn:
     """ Base code:
      https://github.com/pytorch/ignite/blob/v0.2.1/ignite/contrib/handlers/param_scheduler.py#L49
+     https://github.com/pytorch/ignite/blob/v0.2.1/ignite/contrib/handlers/param_scheduler.py#L163
     """
 
     def __call__(self, engine, name=None):
+
+        if self.event_index != 0 and self.event_index % self.cycle_size == 0:
+            self.event_index = 0
+            self.cycle_size *= self.cycle_mult
+            self.cycle += 1
+            self.start_value *= self.start_value_mult
+            self.end_value *= self.end_value_mult
 
         value = self.get_param()
 
