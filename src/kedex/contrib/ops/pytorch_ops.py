@@ -47,8 +47,10 @@ def pytorch_train(
         epochs = train_params.get("epochs")
         progress_update = train_params.get("progress_update")
 
-        optim = train_params.get("optim")
-        optim_params = train_params.get("optim_params", dict())
+        optimizer = train_params.get("optimizer")
+        optimizer_params = train_params.get("optimizer_params", dict())
+        scheduler = train_params.get("scheduler")
+        scheduler_params = train_params.get("scheduler_params", dict())
         loss_fn = train_params.get("loss_fn")
         metrics = train_params.get("metrics")
 
@@ -70,11 +72,11 @@ def pytorch_train(
         if cudnn_benchmark:
             torch.backends.cudnn.benchmark = cudnn_benchmark
 
-        optimizer = optim(model.parameters(), **optim_params)
+        optimizer_ = optimizer(model.parameters(), **optimizer_params)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         trainer = create_supervised_trainer(
-            model, optimizer, loss_fn=loss_fn, device=device
+            model, optimizer_, loss_fn=loss_fn, device=device
         )
 
         train_data_loader_params.setdefault("shuffle", True)
@@ -83,6 +85,15 @@ def pytorch_train(
             train_data_loader_params.get("batch_size", 1), train_dataset, "train"
         )
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
+
+        if scheduler:
+            cycle_epochs = scheduler_params.pop("cycle_epochs", 1)
+            scheduler_params.setdefault(
+                "cycle_size", int(cycle_epochs * len(train_loader))
+            )
+            scheduler_params.setdefault("param_name", "lr")
+            scheduler_ = scheduler(optimizer_, **scheduler_params)
+            trainer.add_event_handler(Events.ITERATION_STARTED, scheduler_)
 
         if evaluate_train_data:
             evaluator_train = create_supervised_evaluator(
@@ -177,14 +188,14 @@ def pytorch_train(
             logging_params = {
                 "train_n_samples": len(train_dataset),
                 "val_n_samples": len(val_dataset),
-                "optim": optim.__name__,
+                "optim": optimizer.__name__,
                 "loss_fn": loss_fn.__name__,
                 "pytorch_version": torch.__version__,
                 "ignite_version": ignite.__version__,
             }
             logging_params.update(_loggable_dict(train_data_loader_params, "train"))
             logging_params.update(_loggable_dict(val_data_loader_params, "val"))
-            logging_params.update(_loggable_dict(optim_params))
+            logging_params.update(_loggable_dict(optimizer_params))
             mlflow_logger.log_params(logging_params)
 
             RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
@@ -222,6 +233,12 @@ def pytorch_train(
                 )
 
         trainer.run(train_loader, max_epochs=epochs)
+
+        try:
+            if pbar and pbar.pbar:
+                pbar.pbar.close()
+        except Exception as e:
+            log.error(e, exc_info=True)
 
         return model
 
