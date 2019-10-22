@@ -87,12 +87,18 @@ def pytorch_train(
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
 
         if scheduler:
+
+            class ParamSchedulerSavingAsMetric(
+                ParamSchedulerSavingAsMetricMixIn, scheduler
+            ):
+                pass
+
             cycle_epochs = scheduler_params.pop("cycle_epochs", 1)
             scheduler_params.setdefault(
                 "cycle_size", int(cycle_epochs * len(train_loader))
             )
             scheduler_params.setdefault("param_name", "lr")
-            scheduler_ = scheduler(optimizer_, **scheduler_params)
+            scheduler_ = ParamSchedulerSavingAsMetric(optimizer_, **scheduler_params)
             trainer.add_event_handler(Events.ITERATION_STARTED, scheduler_)
 
         if evaluate_train_data:
@@ -198,14 +204,19 @@ def pytorch_train(
             logging_params.update(_loggable_dict(optimizer_params))
             mlflow_logger.log_params(logging_params)
 
+            metric_names = []
             RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
-                trainer, "loss_mean"
+                trainer, "loss"
             )
+            metric_names.append("loss")
+            if scheduler:
+                metric_names.append(scheduler_params.get("param_name"))
+
             mlflow_logger.attach(
                 trainer,
                 log_handler=OutputHandler(
                     tag="batch",
-                    metric_names=["loss_mean"],
+                    metric_names=metric_names,
                     global_step_transform=global_step_from_engine(trainer),
                 ),
                 event_name=Events.ITERATION_COMPLETED,
@@ -286,6 +297,35 @@ class TimeLimit:
                 "Reached the time limit: {} sec. Stop training".format(self.limit_sec)
             )
             engine.terminate()
+
+
+class ParamSchedulerSavingAsMetricMixIn:
+    """ Base code:
+     https://github.com/pytorch/ignite/blob/v0.2.1/ignite/contrib/handlers/param_scheduler.py#L49
+    """
+
+    def __call__(self, engine, name=None):
+
+        value = self.get_param()
+
+        for param_group in self.optimizer_param_groups:
+            param_group[self.param_name] = value
+
+        if name is None:
+            name = self.param_name
+
+        if self.save_history:
+            if not hasattr(engine.state, "param_history"):
+                setattr(engine.state, "param_history", {})
+            engine.state.param_history.setdefault(name, [])
+            values = [pg[self.param_name] for pg in self.optimizer_param_groups]
+            engine.state.param_history[name].append(values)
+
+        self.event_index += 1
+
+        if not hasattr(engine.state, "metrics"):
+            setattr(engine.state, "metrics", {})
+        engine.state.metrics[self.param_name] = value  # Save as a metric
 
 
 class PytorchSequential(torch.nn.Sequential):
