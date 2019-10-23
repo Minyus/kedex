@@ -48,10 +48,12 @@ def pytorch_train(
         progress_update = train_params.get("progress_update")
 
         optimizer = train_params.get("optimizer")
+        assert optimizer
         optimizer_params = train_params.get("optimizer_params", dict())
         scheduler = train_params.get("scheduler")
         scheduler_params = train_params.get("scheduler_params", dict())
         loss_fn = train_params.get("loss_fn")
+        assert loss_fn
         metrics = train_params.get("metrics")
 
         evaluate_train_data = train_params.get("evaluate_train_data")
