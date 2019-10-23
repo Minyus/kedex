@@ -271,7 +271,7 @@ def pytorch_train(
 
 
 def _name(obj):
-    return getattr(obj, __name__, None) or getattr(obj.__class__, __name__, "_")
+    return getattr(obj, "__name__", None) or getattr(obj.__class__, "__name__", "_")
 
 
 def _clip_batch_size(batch_size, dataset, tag=""):
