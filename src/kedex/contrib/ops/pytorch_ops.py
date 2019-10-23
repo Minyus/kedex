@@ -196,15 +196,15 @@ def pytorch_train(
             logging_params = {
                 "train_n_samples": len(train_dataset),
                 "train_n_batches": len(train_loader),
-                "optimizer": optimizer.__name__,
-                "loss_fn": loss_fn.__name__,
+                "optimizer": _name(optimizer),
+                "loss_fn": _name(loss_fn),
                 "pytorch_version": torch.__version__,
                 "ignite_version": ignite.__version__,
             }
             logging_params.update(_loggable_dict(optimizer_params, "optimizer"))
             logging_params.update(_loggable_dict(train_data_loader_params, "train"))
             if scheduler:
-                logging_params.update({"scheduler": scheduler.__name__})
+                logging_params.update({"scheduler": _name(scheduler)})
                 logging_params.update(_loggable_dict(scheduler_params, "scheduler"))
 
             if evaluate_val_data:
@@ -268,6 +268,10 @@ def pytorch_train(
         return model
 
     return _pytorch_train
+
+
+def _name(obj):
+    return getattr(obj, __name__, None) or getattr(obj.__class__, __name__, "_")
 
 
 def _clip_batch_size(batch_size, dataset, tag=""):
