@@ -362,3 +362,21 @@ class PytorchSequential(torch.nn.Sequential):
 class PytorchFlatten(torch.nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
+
+
+class PytorchSqueeze(torch.nn.Module):
+    def __init__(self, dim=None):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, input):
+        return torch.squeeze(input, dim=self.dim)
+
+
+class PytorchUnsqueeze(torch.nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, input):
+        return torch.unsqueeze(input, dim=self.dim)
