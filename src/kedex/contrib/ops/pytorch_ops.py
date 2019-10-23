@@ -193,15 +193,27 @@ def pytorch_train(
 
             logging_params = {
                 "train_n_samples": len(train_dataset),
-                "val_n_samples": len(val_dataset),
-                "optim": optimizer.__name__,
+                "train_n_batches": len(train_loader),
+                "optimizer": optimizer.__name__,
                 "loss_fn": loss_fn.__name__,
                 "pytorch_version": torch.__version__,
                 "ignite_version": ignite.__version__,
             }
+            logging_params.update(_loggable_dict(optimizer_params, "optimizer"))
             logging_params.update(_loggable_dict(train_data_loader_params, "train"))
-            logging_params.update(_loggable_dict(val_data_loader_params, "val"))
-            logging_params.update(_loggable_dict(optimizer_params))
+            if scheduler:
+                logging_params.update({"scheduler": scheduler.__name__})
+                logging_params.update(_loggable_dict(scheduler_params, "scheduler"))
+
+            if evaluate_val_data:
+                logging_params.update(
+                    {
+                        "val_n_samples": len(val_dataset),
+                        "val_n_batches": len(val_loader),
+                    }
+                )
+                logging_params.update(_loggable_dict(val_data_loader_params, "val"))
+
             mlflow_logger.log_params(logging_params)
 
             metric_names = []
