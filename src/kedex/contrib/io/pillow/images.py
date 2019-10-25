@@ -53,7 +53,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                 images = [np.asarray(img) for img in images]
                 images = np.stack(images, axis=0)
 
-                images = scale(images, lower=lower, upper=upper)
+                images = scale(lower=lower, upper=upper)(images)
 
                 if as_numpy:
                     images_dict = dict(images=images, names=names)
@@ -70,7 +70,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                 img = Image.open(local_file, **load_args)
                 if as_numpy or to_scale:
                     img = np.asarray(img)
-                    img = scale(img, lower=lower, upper=upper)
+                    img = scale(lower=lower, upper=upper)(img)
 
                     if not as_numpy:
                         img = Image.fromarray(img)
@@ -106,7 +106,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
         if isinstance(images, np.ndarray):
             if images.ndim in {2, 3}:
                 img = images
-                img = scale(img, lower=lower, upper=upper)
+                img = scale(lower=lower, upper=upper)(img)
                 img = Image.fromarray(img, mode=mode)
                 img.save(p, **save_args)
                 return None
