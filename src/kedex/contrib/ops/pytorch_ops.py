@@ -382,6 +382,17 @@ class PytorchUnsqueeze(torch.nn.Module):
         return torch.unsqueeze(input, dim=self.dim)
 
 
+class PytorchSlice(torch.nn.Module):
+    def __init__(self, start=0, end=None, step=1):
+        super().__init__()
+        self.start = start
+        self.end = end
+        self.step = step
+
+    def forward(self, input):
+        return input[:, self.start : (self.end or input.shape[1]) : self.step, ...]
+
+
 _to_channel_last_dict = {3: (-2, -1, -3), 4: (0, -2, -1, -3)}
 
 
