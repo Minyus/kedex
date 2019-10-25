@@ -1,3 +1,4 @@
+from ...ops.pytorch_ops import to_channel_first_arr, to_channel_last_arr
 import copy
 from pathlib import Path
 from typing import Any, Dict, List, Union
@@ -18,6 +19,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
         filepath: str,
         load_args: Dict[str, Any] = None,
         save_args: Dict[str, Any] = None,
+        channel_first=False,
         version: Version = None,
     ) -> None:
 
@@ -27,6 +29,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
             save_args=save_args,
             version=version,
         )
+        self.channel_first = channel_first
 
     def _load(self) -> Any:
 
@@ -56,6 +59,9 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                 images = scale(lower=lower, upper=upper)(images)
 
                 if as_numpy:
+                    if self.channel_first:
+                        images = to_channel_first_arr(images)
+
                     images_dict = dict(images=images, names=names)
 
                 if not as_numpy:
@@ -75,6 +81,9 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                     if not as_numpy:
                         img = Image.fromarray(img)
 
+                if self.channel_first:
+                    img = to_channel_first_arr(img)
+
                 return img
 
     def _save(self, data: Union[np.ndarray, dict, type(Image.Image)]) -> None:
@@ -87,7 +96,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
         mode = save_args.pop("mode", None)
         upper = save_args.pop("upper", None)
         lower = save_args.pop("lower", None)
-        to_scale = upper or lower
+        to_scale = (upper is not None) or (lower is not None)
 
         if isinstance(data, dict):
             images = data.get("images")
@@ -104,9 +113,12 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                 images = np.asarray(images)
 
         if isinstance(images, np.ndarray):
+            if self.channel_first:
+                images = to_channel_last_arr(images)
             if images.ndim in {2, 3}:
                 img = images
                 img = scale(lower=lower, upper=upper)(img)
+                img = np.squeeze(img)
                 img = Image.fromarray(img, mode=mode)
                 img.save(p, **save_args)
                 return None
@@ -122,6 +134,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
                 p.mkdir(parents=True, exist_ok=True)
                 for i, img in enumerate(images):
                     if isinstance(img, np.ndarray):
+                        img = np.squeeze(img)
                         img = Image.fromarray(img)
                     assert isinstance(img, type(Image))
                     s = p / "{}_{:05d}{}".format(p.stem, i, p.suffix)
@@ -139,6 +152,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
             img = dataset[i]
             if isinstance(img, (tuple, list)):
                 img = img[0]
+            img = np.squeeze(img)
             img = Image.fromarray(img, mode=mode)
             name = names[i] if names else "{:05d}".format(i)
             s = p / "{}_{}{}".format(p.stem, name, p.suffix)
@@ -165,7 +179,7 @@ def scale(**kwargs):
     def _scale(a):
         lower = kwargs.get("lower")
         upper = kwargs.get("upper")
-        if lower or upper:
+        if (lower is not None) or (upper is not None):
             max_val = a.max()
             min_val = a.min()
             stat_dict = dict(max_val=max_val, min_val=min_val)
