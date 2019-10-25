@@ -77,7 +77,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
 
                 return img
 
-    def _save(self, data: Union[np.ndarray, dict, type(Image)]) -> None:
+    def _save(self, data: Union[np.ndarray, dict, type(Image.Image)]) -> None:
         save_path = Path(self._get_save_path())
         save_path.parent.mkdir(parents=True, exist_ok=True)
         p = save_path
@@ -95,7 +95,7 @@ class ImagesLocalDataSet(DefaultArgumentsMixIn, AbstractVersionedDataSet):
         else:
             images = data
 
-        if isinstance(images, type(Image)):
+        if hasattr(images, "save"):
             if not to_scale:
                 img = images
                 img.save(p, **save_args)
