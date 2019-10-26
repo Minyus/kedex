@@ -359,30 +359,136 @@ class ModuleSequential(torch.nn.Sequential):
         super().__init__(*modules)
 
 
-class ModuleConcat:
-    def __init__(self, modules, dim=1):
-        self.modules = modules
-        self.dim = dim
-
+class ModuleListMerge(ModuleSequential):
     def forward(self, input):
-        tt_list = [module.forward(input) for module in self.modules]
-        return torch.stack(tt_list, dim=self.dim)
+        return [module.forward(input) for module in self._modules.values()]
+
+
+class ModuleConcat(ModuleListMerge):
+    def forward(self, input):
+        return torch.cat(super().forward(input), dim=1)
 
 
 def element_wise_average(tt_list):
     return torch.mean(torch.stack(tt_list), dim=0)
 
 
-class ModuleAverage:
-    def __init__(self, modules):
-        self.modules = modules
-
+class ModuleAverage(ModuleListMerge):
     def forward(self, input):
-        tt_list = [module.forward(input) for module in self.modules]
-        return element_wise_average(tt_list)
+        return element_wise_average(super().forward(input))
 
 
-class TensorSkip:
+class StatModule(torch.nn.Module):
+    def __init__(self, dim, keepdim=False):
+        self.dim = dim
+        self.keepdim = keepdim
+        super().__init__()
+
+
+class Pool1dMixIn:
+    def __init__(self, keepdim=False):
+        super().__init__(dim=[2], keepdim=keepdim)
+
+
+class Pool2dMixIn:
+    def __init__(self, keepdim=False):
+        super().__init__(dim=[3, 2], keepdim=keepdim)
+
+
+class Pool3dMixIn:
+    def __init__(self, keepdim=False):
+        super().__init__(dim=[4, 3, 2], keepdim=keepdim)
+
+
+class TensorMean(StatModule):
+    def forward(self, input):
+        return torch.mean(input, dim=self.dim, keepdim=self.keepdim)
+
+
+class TensorGlobalAvePool1d(Pool1dMixIn, TensorMean):
+    pass
+
+
+class TensorGlobalAvePool2d(Pool2dMixIn, TensorMean):
+    pass
+
+
+class TensorGlobalAvePool3d(Pool3dMixIn, TensorMean):
+    pass
+
+
+class TensorMax(StatModule, torch.nn.Module):
+    def forward(self, input):
+        return tensor_max(input, dim=self.dim, keepdim=self.keepdim)
+
+
+def tensor_max(input, dim, keepdim=False):
+    if isinstance(dim, int):
+        return torch.max(input, dim=dim, keepdim=keepdim)[0]
+    else:
+        for d in dim:
+            input = torch.max(input, dim=d, keepdim=keepdim)[0]
+        return input
+
+
+class TensorGlobalMaxPool1d(Pool1dMixIn, TensorMax):
+    pass
+
+
+class TensorGlobalMaxPool2d(Pool2dMixIn, TensorMax):
+    pass
+
+
+class TensorGlobalMaxPool3d(Pool3dMixIn, TensorMax):
+    pass
+
+
+class TensorMin(StatModule, torch.nn.Module):
+    def forward(self, input):
+        return tensor_min(input, dim=self.dim, keepdim=self.keepdim)
+
+
+def tensor_min(input, dim, keepdim=False):
+    if isinstance(dim, int):
+        return torch.min(input, dim=dim, keepdim=keepdim)[0]
+    else:
+        for d in dim:
+            input = torch.min(input, dim=d, keepdim=keepdim)[0]
+        return input
+
+
+class TensorGlobalMinPool1d(Pool1dMixIn, TensorMin):
+    pass
+
+
+class TensorGlobalMinPool2d(Pool2dMixIn, TensorMin):
+    pass
+
+
+class TensorGlobalMinPool3d(Pool3dMixIn, TensorMin):
+    pass
+
+
+class TensorRange(StatModule, torch.nn.Module):
+    def forward(self, input):
+        return tensor_max(input, dim=self.dim, keepdim=self.keepdim) - tensor_min(
+            input, dim=self.dim, keepdim=self.keepdim
+        )
+
+
+class TensorGlobalRangePool1d(Pool1dMixIn, TensorRange):
+    pass
+
+
+class TensorGlobalRangePool2d(Pool2dMixIn, TensorRange):
+    pass
+
+
+class TensorGlobalRangePool3d(Pool3dMixIn, TensorRange):
+    pass
+
+
+class TensorSkip(torch.nn.Module):
     def forward(self, input):
         return input
 
