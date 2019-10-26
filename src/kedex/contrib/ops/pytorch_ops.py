@@ -355,7 +355,8 @@ class ParamSchedulerSavingAsMetricMixIn:
 
 
 class ModuleSequential(torch.nn.Sequential):
-    def __init__(self, modules):
+    def __init__(self, *args, modules=None):
+        modules = modules or args
         super().__init__(*modules)
 
 
