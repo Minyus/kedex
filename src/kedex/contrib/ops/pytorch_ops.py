@@ -13,7 +13,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def pytorch_train(
+def neural_network_train(
     train_params,  # type: dict
     mlflow_logging=True,  # type: bool
 ):
@@ -354,17 +354,45 @@ class ParamSchedulerSavingAsMetricMixIn:
         engine.state.metrics[self.param_name] = value  # Save as a metric
 
 
-class PytorchSequential(torch.nn.Sequential):
+class ModuleSequential(torch.nn.Sequential):
     def __init__(self, modules):
         super().__init__(*modules)
 
 
-class PytorchFlatten(torch.nn.Module):
+class ModuleConcat:
+    def __init__(self, modules, dim=1):
+        self.modules = modules
+        self.dim = dim
+
+    def forward(self, input):
+        tt_list = [module.forward(input) for module in self.modules]
+        return torch.stack(tt_list, dim=self.dim)
+
+
+def element_wise_average(tt_list):
+    return torch.mean(torch.stack(tt_list), dim=0)
+
+
+class ModuleAverage:
+    def __init__(self, modules):
+        self.modules = modules
+
+    def forward(self, input):
+        tt_list = [module.forward(input) for module in self.modules]
+        return element_wise_average(tt_list)
+
+
+class TensorSkip:
+    def forward(self, input):
+        return input
+
+
+class TensorFlatten(torch.nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
 
 
-class PytorchSqueeze(torch.nn.Module):
+class TensorSqueeze(torch.nn.Module):
     def __init__(self, dim=None):
         super().__init__()
         self.dim = dim
@@ -373,7 +401,7 @@ class PytorchSqueeze(torch.nn.Module):
         return torch.squeeze(input, dim=self.dim)
 
 
-class PytorchUnsqueeze(torch.nn.Module):
+class TensorUnsqueeze(torch.nn.Module):
     def __init__(self, dim):
         super().__init__()
         self.dim = dim
@@ -382,7 +410,7 @@ class PytorchUnsqueeze(torch.nn.Module):
         return torch.unsqueeze(input, dim=self.dim)
 
 
-class PytorchSlice(torch.nn.Module):
+class TensorSlice(torch.nn.Module):
     def __init__(self, start=0, end=None, step=1):
         super().__init__()
         self.start = start
@@ -391,6 +419,16 @@ class PytorchSlice(torch.nn.Module):
 
     def forward(self, input):
         return input[:, self.start : (self.end or input.shape[1]) : self.step, ...]
+
+
+class TransformCompose:
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, d):
+        for t in self.transforms:
+            d = t(d)
+        return d
 
 
 _to_channel_last_dict = {3: (-2, -1, -3), 4: (0, -2, -1, -3)}
