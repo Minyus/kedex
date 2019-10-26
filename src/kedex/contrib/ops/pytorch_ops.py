@@ -528,6 +528,25 @@ class TensorSlice(torch.nn.Module):
         return input[:, self.start : (self.end or input.shape[1]) : self.step, ...]
 
 
+class TensorNearestPad(torch.nn.Module):
+    def __init__(self, lower=1, upper=1):
+        super().__init__()
+        assert isinstance(lower, int) and lower >= 0
+        assert isinstance(upper, int) and upper >= 0
+        self.lower = lower
+        self.upper = upper
+
+    def forward(self, input):
+        return torch.cat(
+            [
+                input[:, :1].expand(-1, self.lower),
+                input,
+                input[:, -1:].expand(-1, self.upper),
+            ],
+            dim=1,
+        )
+
+
 class TransformCompose:
     def __init__(self, transforms):
         self.transforms = transforms
