@@ -547,6 +547,15 @@ class TensorNearestPad(torch.nn.Module):
         )
 
 
+class TensorCumsum(torch.nn.Module):
+    def __init__(self, dim=1):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, input):
+        return torch.cumsum(input, dim=self.dim)
+
+
 class TransformCompose:
     def __init__(self, transforms):
         self.transforms = transforms
