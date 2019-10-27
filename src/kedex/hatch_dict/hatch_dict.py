@@ -15,6 +15,7 @@ class HatchDict:
         support_import=True,  # type: bool
         additional_import_modules=[__name__],  # type: Union[List, str]
         obj_key="obj",  # type: str
+        eval_parentheses=True,  # type: bool
     ):
         # type: (...) -> None
 
@@ -47,6 +48,7 @@ class HatchDict:
             else additional_import_modules or [__name__]
         )
         self.obj_key = obj_key
+        self.eval_parentheses = eval_parentheses
 
         self.warmed_egg = None
         self.snapshot = None
@@ -97,6 +99,7 @@ class HatchDict:
                 default_module=m,
                 forcing_module=forcing_module,
                 obj_key=self.obj_key,
+                eval_parentheses=self.eval_parentheses,
             )
         self.snapshot = s
         return d
@@ -112,6 +115,7 @@ def _dict_apply(
     default_module="__main__",  # type: str
     forcing_module="",  # type: str
     obj_key="obj",  # type: str
+    eval_parentheses=False,  # type: bool
 ):
     # type: (...) -> Any
 
@@ -156,6 +160,15 @@ def _dict_apply(
             )
             d.append(_d)
             s.append(_s)
+
+    if isinstance(d_input, str):
+        if (
+            eval_parentheses
+            and len(d_input) >= 2
+            and d_input[0] == "("
+            and d_input[-1] == ")"
+        ):
+            d = eval(d)
 
     return d, s
 
