@@ -13,7 +13,7 @@ class HatchDict:
         support_nested_keys=True,  # type: bool
         self_lookup_key="obj",  # type: str
         support_import=True,  # type: bool
-        additional_import_modules=[__name__],  # type: Union[List, str]
+        additional_import_modules=["__main__"],  # type: Union[List, str]
         obj_key="obj",  # type: str
         eval_parentheses=True,  # type: bool
     ):
@@ -76,12 +76,16 @@ class HatchDict:
         if self.self_lookup_key:
             s = dict()
             while d != s:
-                d, s = _dict_apply(
+                d, s = _dfs_apply(
                     d_input=d,
-                    lookup=self.aug_egg,
-                    support_import=False,
-                    obj_key=self.self_lookup_key,
+                    hatch_args=dict(lookup=self.aug_egg, obj_key=self.self_lookup_key),
                 )
+            self.warmed_egg = d
+
+        if self.eval_parentheses:
+            d, s = _dfs_apply(
+                d_input=d, hatch_args=dict(eval_parentheses=self.eval_parentheses)
+            )
             self.warmed_egg = d
 
         lookup_input = {}
@@ -92,14 +96,15 @@ class HatchDict:
             forcing_module = self.egg.get("FORCING_MODULE", "")
 
         for m in self.additional_import_modules:
-            d, s = _dict_apply(
+            d, s = _dfs_apply(
                 d_input=d,
-                lookup=lookup_input,
-                support_import=self.support_import,
-                default_module=m,
-                forcing_module=forcing_module,
-                obj_key=self.obj_key,
-                eval_parentheses=self.eval_parentheses,
+                hatch_args=dict(
+                    lookup=lookup_input,
+                    support_import=self.support_import,
+                    default_module=m,
+                    forcing_module=forcing_module,
+                    obj_key=self.obj_key,
+                ),
             )
         self.snapshot = s
         return d
@@ -108,16 +113,18 @@ class HatchDict:
         return self.snapshot
 
 
-def _dict_apply(
+def _dfs_apply(
     d_input,  # type: Any
-    lookup={},  # type: dict
-    support_import=False,  # type: bool
-    default_module="__main__",  # type: str
-    forcing_module="",  # type: str
-    obj_key="obj",  # type: str
-    eval_parentheses=False,  # type: bool
+    hatch_args,  # type: dict
 ):
     # type: (...) -> Any
+
+    eval_parentheses = hatch_args.get("eval_parentheses", False)  # type: bool
+    lookup = hatch_args.get("lookup", dict())  # type: dict
+    support_import = hatch_args.get("support_import", False)  # type: bool
+    default_module = hatch_args.get("default_module", "")  # type: str
+    forcing_module = hatch_args.get("forcing_module", "")  # type: str
+    obj_key = hatch_args.get("obj_key", "obj")  # type: str
 
     d = d_input
     s = d_input
@@ -128,14 +135,7 @@ def _dict_apply(
 
         d, s = {}, {}
         for k, v in iteritems(d_input):
-            d[k], s[k] = _dict_apply(
-                v,
-                lookup=lookup,
-                support_import=support_import,
-                default_module=default_module,
-                forcing_module=forcing_module,
-                obj_key=obj_key,
-            )
+            d[k], s[k] = _dfs_apply(v, hatch_args)
 
         if obj_str:
             if obj_str in lookup:
@@ -151,13 +151,7 @@ def _dict_apply(
 
         d, s = [], []
         for v in d_input:
-            _d, _s = _dict_apply(
-                v,
-                lookup=lookup,
-                support_import=support_import,
-                default_module=default_module,
-                obj_key=obj_key,
-            )
+            _d, _s = _dfs_apply(v, hatch_args)
             d.append(_d)
             s.append(_s)
 
