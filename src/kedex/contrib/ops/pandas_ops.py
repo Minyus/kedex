@@ -369,3 +369,14 @@ def df_get_dummies(**kwargs):
         return pd.get_dummies(df, **kwargs)
 
     return _df_get_dummies
+
+
+def df_return(func, **kwargs):
+    def _df_return(df, *argsignore, **kwargsignore):
+        func_params = kwargs.pop("func_params", dict())
+        cols = kwargs.pop("cols", None)
+        cols = cols or df.columns
+        df[cols] = func(df, **func_params)
+        return df
+
+    return _df_return
