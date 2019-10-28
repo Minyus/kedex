@@ -362,3 +362,10 @@ def sr_map(**kwargs):
         sr.map(**kwargs)
 
     return _sr_map
+
+
+def df_get_dummies(**kwargs):
+    def _df_get_dummies(df, *argsignore, **kwargsignore):
+        return pd.get_dummies(df, **kwargs)
+
+    return _df_get_dummies
