@@ -328,6 +328,35 @@ def df_ewm(**kwargs):
     return _df_ewm
 
 
+def df_rename(**kwargs):
+    def _df_rename(df, *argsignore, **kwargsignore):
+        return df.rename(**kwargs)
+
+    return _df_rename
+
+
+def df_map(arg, prefix="", suffix="", **kwargs):
+    assert isinstance(arg, dict)
+
+    def _df_map(df, *argsignore, **kwargsignore):
+        for col, m in arg.items():
+            if col in df.columns:
+                new_col = prefix + col + suffix
+                if isinstance(m, pd.Series):
+                    m = m.to_dict()
+                if isinstance(m, dict):
+                    df.loc[:, new_col] = df[col].map(m, **kwargs)
+                elif callable(m):
+                    df.loc[:, new_col] = df[col].apply(m, **kwargs)
+                elif m is not None:
+                    df.loc[:, new_col] = m
+            else:
+                log.warning("'{}' not in the DataFrame".format(col))
+        return df
+
+    return _df_map
+
+
 def sr_map(**kwargs):
     def _sr_map(sr, *argsignore, **kwargsignore):
         sr.map(**kwargs)
