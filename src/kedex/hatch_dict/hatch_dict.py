@@ -3,6 +3,7 @@ from kedro.utils import load_obj
 from six import iteritems
 import operator
 from typing import Union, List, Iterable  # NOQA
+from types import MethodType
 
 
 class HatchDict:
@@ -177,6 +178,7 @@ def _hatch(
     if d:
         assert callable(a)
         d.pop(dummy_key, None)
+        attribute_name = d.pop(".", None)
         for k in d:
             assert isinstance(
                 k, str
@@ -184,6 +186,10 @@ def _hatch(
                 k, d, a.__name__
             )
         d = a(**d)
+        if attribute_name:
+            d = getattr(d, attribute_name)
+            # if isinstance(d, MethodType):
+            #     d = lambda *args: d(args[0])
     else:
         d = a
     return d
