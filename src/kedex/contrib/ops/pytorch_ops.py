@@ -40,7 +40,7 @@ def neural_network_train(
                 global_step_from_engine,
             )
 
-    def _pytorch_train(model, train_dataset, val_dataset=None, parameters=None):
+    def _neural_network_train(model, train_dataset, val_dataset=None, parameters=None):
 
         train_data_loader_params = train_params.get("train_data_loader_params", dict())
         val_data_loader_params = train_params.get("val_data_loader_params", dict())
@@ -267,7 +267,7 @@ def neural_network_train(
 
         return model
 
-    return _pytorch_train
+    return _neural_network_train
 
 
 def _name(obj):
