@@ -371,12 +371,40 @@ def df_get_dummies(**kwargs):
     return _df_get_dummies
 
 
-def df_return(func, **kwargs):
-    def _df_return(df, *argsignore, **kwargsignore):
+def df_col_apply(func, **kwargs):
+    def _df_col_apply(df, *argsignore, **kwargsignore):
         func_params = kwargs.pop("func_params", dict())
         cols = kwargs.pop("cols", None)
         cols = cols or df.columns
-        df[cols] = func(df, **func_params)
+        df.loc[:, cols] = func(df.loc[:, cols], **func_params)
         return df
 
-    return _df_return
+    return _df_col_apply
+
+
+def df_dtypes_apply(func, **kwargs):
+    def _df_dtypes_apply(df, *argsignore, **kwargsignore):
+        func_params = kwargs.pop("func_params", dict())
+        cols = df.select_dtypes(**kwargs).columns.to_list()
+        df.loc[:, cols] = func(df.loc[:, cols], **func_params)
+        return df
+
+    return _df_dtypes_apply
+
+
+def df_row_apply(func, **kwargs):
+    def _df_row_apply(df, *argsignore, **kwargsignore):
+        func_params = kwargs.pop("func_params", dict())
+        rows = kwargs.pop("rows", None)
+        rows = rows or df.index
+        df.loc[rows, :] = func(df.loc[rows, :], **func_params)
+        return df
+
+    return _df_row_apply
+
+
+def df_fillna(**kwargs):
+    def _df_fillna(df, *argsignore, **kwargsignore):
+        return df.fillna(**kwargs)
+
+    return _df_fillna
