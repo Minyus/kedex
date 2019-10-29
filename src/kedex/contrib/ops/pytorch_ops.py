@@ -42,6 +42,16 @@ def neural_network_train(
 
     def _neural_network_train(model, train_dataset, val_dataset=None, parameters=None):
 
+        train_dataset_size_limit = train_params.get("train_dataset_size_limit")
+        val_dataset_size_limit = train_params.get("val_dataset_size_limit")
+        if train_dataset_size_limit:
+            train_dataset = PartialDataset(train_dataset, train_dataset_size_limit)
+            log.info("train dataset size is set to {}".format(len(train_dataset)))
+
+        if val_dataset_size_limit:
+            val_dataset = PartialDataset(val_dataset, val_dataset_size_limit)
+            log.info("val dataset size is set to {}".format(len(val_dataset)))
+
         train_data_loader_params = train_params.get("train_data_loader_params", dict())
         val_data_loader_params = train_params.get("val_data_loader_params", dict())
         epochs = train_params.get("epochs")
@@ -116,25 +126,30 @@ def neural_network_train(
             evaluator_val = create_supervised_evaluator(
                 model, metrics=metrics, device=device
             )
-            if early_stopping_params:
-                assert isinstance(early_stopping_params, dict)
-                metric = early_stopping_params.get("metric")
-                assert metric in metrics
-                minimize = early_stopping_params.get("minimize")
-                patience = early_stopping_params.get("patience", 1)
 
-                def score_function(engine):
-                    m = engine.state.metrics.get(metric)
-                    return -m if minimize else m
+        if early_stopping_params:
+            assert isinstance(early_stopping_params, dict)
+            metric = early_stopping_params.get("metric")
+            assert metric in metrics
+            minimize = early_stopping_params.get("minimize")
+            patience = early_stopping_params.get("patience", 1)
 
-                es = EarlyStopping(
-                    patience=patience, score_function=score_function, trainer=trainer
-                )
-                evaluator_val.add_event_handler(Events.COMPLETED, es)
-        elif early_stopping_params:
-            log.warning(
-                "Early Stopping is disabled because evaluate_val_data is not True."
+            def score_function(engine):
+                m = engine.state.metrics.get(metric)
+                return -m if minimize else m
+
+            es = EarlyStopping(
+                patience=patience, score_function=score_function, trainer=trainer
             )
+            if evaluate_val_data:
+                evaluator_val.add_event_handler(Events.COMPLETED, es)
+            elif evaluate_train_data:
+                evaluator_train.add_event_handler(Events.COMPLETED, es)
+            elif early_stopping_params:
+                log.warning(
+                    "Early Stopping is disabled because neither "
+                    "evaluate_val_data nor evaluate_train_data is set True."
+                )
 
         if time_limit:
             assert isinstance(time_limit, (int, float))
@@ -352,6 +367,22 @@ class ParamSchedulerSavingAsMetricMixIn:
         if not hasattr(engine.state, "metrics"):
             setattr(engine.state, "metrics", {})
         engine.state.metrics[self.param_name] = value  # Save as a metric
+
+
+class PartialDataset:
+    def __init__(self, dataset, size):
+        size = int(size)
+        assert hasattr(dataset, "__getitem__")
+        assert hasattr(dataset, "__len__")
+        assert dataset.__len__() >= size
+        self.dataset = dataset
+        self.size = size
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, item):
+        return self.dataset[item]
 
 
 class ModuleSequential(torch.nn.Sequential):
