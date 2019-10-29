@@ -367,6 +367,7 @@ class FlexibleModelCheckpoint(ModelCheckpoint):
         filename_prefix,
         offset_hours=0,
         filename_format=None,
+        suffix_format=None,
         *args,
         **kwargs
     ):
@@ -385,6 +386,17 @@ class FlexibleModelCheckpoint(ModelCheckpoint):
                 return format_str.format(filename_prefix, name, step_number, suffix)
 
         self._filename_format = filename_format
+
+        if not callable(suffix_format):
+            if isinstance(suffix_format, str):
+                suffix_str = suffix_format
+            else:
+                suffix_str = "_{}_{:.7}"
+
+            def suffix_format(score_name, abs_priority):
+                return suffix_str.format(score_name, abs_priority)
+
+        self._suffix_format = suffix_format
 
     def __call__(self, engine, to_save):
         if len(to_save) == 0:
@@ -405,7 +417,7 @@ class FlexibleModelCheckpoint(ModelCheckpoint):
 
             suffix = ""
             if self._score_name is not None:
-                suffix = "_{}={:.7}".format(self._score_name, abs(priority))
+                suffix = self._suffix_format(self._score_name, abs(priority))
 
             for name, obj in to_save.items():
                 fname = self._filename_format(
