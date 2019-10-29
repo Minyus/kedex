@@ -306,7 +306,7 @@ def neural_network_train(
         except Exception as e:
             log.error(e, exc_info=True)
 
-        model = load_best_model(model_checkpoint_params)(model)
+        model = load_latest_model(model_checkpoint_params)(model)
 
         return model
 
@@ -323,35 +323,36 @@ def get_score_function(metric, metrics, minimize=False):
     return _score_function
 
 
-def load_best_model(model_checkpoint_params=None):
+def load_latest_model(model_checkpoint_params=None):
     if "model_checkpoint_params" in model_checkpoint_params:
         model_checkpoint_params = model_checkpoint_params.get("model_checkpoint_params")
 
-    def _load_best_model(model=None):
+    def _load_latest_model(model=None):
         if model_checkpoint_params:
             try:
                 dirname = model_checkpoint_params.get("dirname")
                 assert dirname
-                filename_prefix = model_checkpoint_params.get("filename_prefix")
-                assert filename_prefix
-                dir_glob = Path(dirname).glob("{}_".format(filename_prefix) + "*.pth")
+                dir_glob = Path(dirname).glob("*.pth")
                 files = [str(p) for p in dir_glob if p.is_file()]
-                model_path = sorted(files)[-1]
-                log.info("Model path: {}".format(model_path))
-                loaded = torch.load(model_path)
-                save_as_state_dict = model_checkpoint_params.get(
-                    "save_as_state_dict", True
-                )
-                if save_as_state_dict:
-                    assert model
-                    model.load_state_dict(loaded)
+                if len(files) >= 1:
+                    model_path = sorted(files)[-1]
+                    log.info("Model path: {}".format(model_path))
+                    loaded = torch.load(model_path)
+                    save_as_state_dict = model_checkpoint_params.get(
+                        "save_as_state_dict", True
+                    )
+                    if save_as_state_dict:
+                        assert model
+                        model.load_state_dict(loaded)
+                    else:
+                        model = loaded
                 else:
-                    model = loaded
+                    log.warning("Model not found at: {}".format(dirname))
             except Exception as e:
                 log.error(e, exc_info=True)
         return model
 
-    return _load_best_model
+    return _load_latest_model
 
 
 """ https://github.com/pytorch/ignite/blob/v0.2.1/ignite/handlers/checkpoint.py """
