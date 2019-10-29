@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import torch
@@ -357,7 +358,19 @@ def load_best_model(model_checkpoint_params=None):
 
 
 class FlexibleModelCheckpoint(ModelCheckpoint):
-    def __init__(self, dirname, filename_prefix, filename_format=None, *args, **kwargs):
+    def __init__(
+        self,
+        dirname,
+        filename_prefix,
+        offset_hours=0,
+        filename_format=None,
+        *args,
+        **kwargs
+    ):
+        if "%" in filename_prefix:
+            filename_prefix = get_timestamp(
+                fmt=filename_prefix, offset_hours=offset_hours
+            )
         super().__init__(dirname, filename_prefix, *args, **kwargs)
         if not callable(filename_format):
             if isinstance(filename_format, str):
@@ -410,6 +423,10 @@ class FlexibleModelCheckpoint(ModelCheckpoint):
 
 
 """ """
+
+
+def get_timestamp(fmt="%Y-%m-%dT%H:%M:%S", offset_hours=0):
+    return (datetime.now() + timedelta(hours=offset_hours)).strftime(fmt)
 
 
 def _name(obj):
