@@ -102,6 +102,14 @@ def neural_network_train(
         )
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
 
+        RunningAverage(output_transform=lambda x: x, alpha=0.98).attach(
+            trainer, "loss_ema"
+        )
+
+        RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
+            trainer, "loss"
+        )
+
         if scheduler:
 
             class ParamSchedulerSavingAsMetric(
@@ -189,13 +197,16 @@ def neural_network_train(
             progress_update.setdefault("persist", True)
             progress_update.setdefault("desc", "")
             pbar = ProgressBar(**progress_update)
-            try:
-                RunningAverage(output_transform=lambda x: x, alpha=0.98).attach(
-                    trainer, "loss_ema"
+            pbar.attach(trainer, ["loss_ema"])
+
+        else:
+
+            def log_train_metrics(engine):
+                log.info(
+                    "[Epoch: {} | {}]".format(engine.state.epoch, engine.state.metrics)
                 )
-                pbar.attach(trainer, ["loss_ema"])
-            except Exception as e:
-                log.error(e, exc_info=True)
+
+            trainer.add_event_handler(Events.EPOCH_COMPLETED, log_train_metrics)
 
         if evaluate_train_data:
 
@@ -230,10 +241,6 @@ def neural_network_train(
                 else Events.EPOCH_COMPLETED
             )
             trainer.add_event_handler(eval_val_event, log_evaluation_val_data)
-
-        RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
-            trainer, "loss"
-        )
 
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
