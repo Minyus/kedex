@@ -231,6 +231,10 @@ def neural_network_train(
             )
             trainer.add_event_handler(eval_val_event, log_evaluation_val_data)
 
+        RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
+            trainer, "loss"
+        )
+
         if mlflow_logging:
             mlflow_logger = MLflowLogger()
 
@@ -260,9 +264,7 @@ def neural_network_train(
             mlflow_logger.log_params(logging_params)
 
             metric_names = []
-            RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
-                trainer, "loss"
-            )
+
             metric_names.append("loss")
             if scheduler:
                 metric_names.append(scheduler_params.get("param_name"))
