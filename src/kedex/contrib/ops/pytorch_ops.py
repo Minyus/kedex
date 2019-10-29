@@ -1,9 +1,12 @@
+import os
+from pathlib import Path
+
 import torch
 
 from torch.utils.data import DataLoader
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import RunningAverage
-from ignite.handlers import EarlyStopping
+from ignite.handlers import EarlyStopping, ModelCheckpoint
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 import numpy as np
 import time
@@ -71,7 +74,7 @@ def neural_network_train(
 
         early_stopping_params = train_params.get("early_stopping_params")
         time_limit = train_params.get("time_limit")
-
+        model_checkpoint_params = train_params.get("model_checkpoint_params")
         seed = train_params.get("seed")
         cudnn_deterministic = train_params.get("cudnn_deterministic")
         cudnn_benchmark = train_params.get("cudnn_benchmark")
@@ -127,20 +130,42 @@ def neural_network_train(
                 model, metrics=metrics, device=device
             )
 
+        if model_checkpoint_params:
+            assert isinstance(model_checkpoint_params, dict)
+            metric = model_checkpoint_params.pop("metric", None)
+            minimize = model_checkpoint_params.pop("minimize", False)
+            if metric:
+                assert (
+                    "save_interval" not in model_checkpoint_params
+                ), "Remove either 'metric' or 'save_interval' from model_checkpoint_params: {}".format(
+                    model_checkpoint_params
+                )
+                assert (
+                    "score_function" not in model_checkpoint_params
+                ), "Remove either 'metric' or 'score_function' from model_checkpoint_params: {}".format(
+                    model_checkpoint_params
+                )
+                model_checkpoint_params["score_function"] = get_score_function(
+                    metric, metrics, minimize=minimize
+                )
+            mc = FlexibleModelCheckpoint(**model_checkpoint_params)
+            trainer.add_event_handler(Events.EPOCH_COMPLETED, mc, {"model": model})
+
         if early_stopping_params:
             assert isinstance(early_stopping_params, dict)
-            metric = early_stopping_params.get("metric")
-            assert metric in metrics
-            minimize = early_stopping_params.get("minimize")
-            patience = early_stopping_params.get("patience", 1)
+            metric = early_stopping_params.pop("metric", None)
+            minimize = early_stopping_params.pop("minimize", False)
+            if metric:
+                assert (
+                    "score_function" not in early_stopping_params
+                ), "Remove either 'metric' or 'score_function' from early_stopping_params: {}".format(
+                    early_stopping_params
+                )
+                early_stopping_params["score_function"] = get_score_function(
+                    metric, metrics, minimize=minimize
+                )
 
-            def score_function(engine):
-                m = engine.state.metrics.get(metric)
-                return -m if minimize else m
-
-            es = EarlyStopping(
-                patience=patience, score_function=score_function, trainer=trainer
-            )
+            es = EarlyStopping(trainer=trainer, **early_stopping_params)
             if evaluate_val_data:
                 evaluator_val.add_event_handler(Events.COMPLETED, es)
             elif evaluate_train_data:
@@ -280,9 +305,111 @@ def neural_network_train(
         except Exception as e:
             log.error(e, exc_info=True)
 
+        model = load_best_model(model_checkpoint_params)(model)
+
         return model
 
     return _neural_network_train
+
+
+def get_score_function(metric, metrics, minimize=False):
+    assert metric in metrics
+
+    def _score_function(engine):
+        m = engine.state.metrics.get(metric)
+        return -m if minimize else m
+
+    return _score_function
+
+
+def load_best_model(model_checkpoint_params=None):
+    if "model_checkpoint_params" in model_checkpoint_params:
+        model_checkpoint_params = model_checkpoint_params.get("model_checkpoint_params")
+
+    def _load_best_model(model=None):
+        if model_checkpoint_params:
+            try:
+                dirname = model_checkpoint_params.get("dirname")
+                assert dirname
+                filename_prefix = model_checkpoint_params.get("filename_prefix")
+                assert filename_prefix
+                dir_glob = Path(dirname).glob("{}_".format(filename_prefix) + "*.pth")
+                files = [str(p) for p in dir_glob if p.is_file()]
+                model_path = sorted(files)[-1]
+                log.info("Model path: {}".format(model_path))
+                loaded = torch.load(model_path)
+                save_as_state_dict = model_checkpoint_params.get(
+                    "save_as_state_dict", True
+                )
+                if save_as_state_dict:
+                    assert model
+                    model.load_state_dict(loaded)
+                else:
+                    model = loaded
+            except Exception as e:
+                log.error(e, exc_info=True)
+        return model
+
+    return _load_best_model
+
+
+""" https://github.com/pytorch/ignite/blob/v0.2.1/ignite/handlers/checkpoint.py """
+
+
+class FlexibleModelCheckpoint(ModelCheckpoint):
+    def __init__(self, dirname, filename_prefix, filename_format=None, *args, **kwargs):
+        super().__init__(dirname, filename_prefix, *args, **kwargs)
+        if not callable(filename_format):
+            if isinstance(filename_format, str):
+                format_str = filename_format
+            else:
+                format_str = "{}_{}_{:06d}{}.pth"
+
+            def filename_format(filename_prefix, name, step_number, suffix):
+                return format_str.format(filename_prefix, name, step_number, suffix)
+
+        self._filename_format = filename_format
+
+    def __call__(self, engine, to_save):
+        if len(to_save) == 0:
+            raise RuntimeError("No objects to checkpoint found.")
+
+        self._iteration += 1
+
+        if self._score_function is not None:
+            priority = self._score_function(engine)
+
+        else:
+            priority = self._iteration
+            if (self._iteration % self._save_interval) != 0:
+                return
+
+        if (len(self._saved) < self._n_saved) or (self._saved[0][0] < priority):
+            saved_objs = []
+
+            suffix = ""
+            if self._score_name is not None:
+                suffix = "_{}={:.7}".format(self._score_name, abs(priority))
+
+            for name, obj in to_save.items():
+                fname = self._filename_format(
+                    self._fname_prefix, name, self._iteration, suffix
+                )
+                path = os.path.join(self._dirname, fname)
+
+                self._save(obj=obj, path=path)
+                saved_objs.append(path)
+
+            self._saved.append((priority, saved_objs))
+            self._saved.sort(key=lambda item: item[0])
+
+        if len(self._saved) > self._n_saved:
+            _, paths = self._saved.pop(0)
+            for p in paths:
+                os.remove(p)
+
+
+""" """
 
 
 def _name(obj):
