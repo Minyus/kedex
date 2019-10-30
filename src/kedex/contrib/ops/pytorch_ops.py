@@ -68,7 +68,7 @@ def neural_network_train(
         scheduler_params = train_params.get("scheduler_params", dict())
         loss_fn = train_params.get("loss_fn")
         assert loss_fn
-        metrics = train_params.get("metrics")
+        evaluation_metrics = train_params.get("evaluation_metrics")
 
         evaluate_train_data = train_params.get("evaluate_train_data")
         evaluate_val_data = train_params.get("evaluate_val_data")
@@ -103,11 +103,11 @@ def neural_network_train(
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
 
         RunningAverage(output_transform=lambda x: x, alpha=0.98).attach(
-            trainer, "loss_ema"
+            trainer, "ema_loss"
         )
 
         RunningAverage(output_transform=lambda x: x, alpha=2 ** (-1022)).attach(
-            trainer, "loss"
+            trainer, "batch_loss"
         )
 
         if scheduler:
@@ -127,7 +127,7 @@ def neural_network_train(
 
         if evaluate_train_data:
             evaluator_train = create_supervised_evaluator(
-                model, metrics=metrics, device=device
+                model, metrics=evaluation_metrics, device=device
             )
 
         if evaluate_val_data:
@@ -136,33 +136,25 @@ def neural_network_train(
             )
             val_loader = DataLoader(val_dataset, **val_data_loader_params)
             evaluator_val = create_supervised_evaluator(
-                model, metrics=metrics, device=device
+                model, metrics=evaluation_metrics, device=device
             )
 
         if model_checkpoint_params:
             assert isinstance(model_checkpoint_params, dict)
-            metric = model_checkpoint_params.pop("metric", None)
-            minimize = model_checkpoint_params.pop("minimize", False)
-            if metric:
-                assert (
-                    "save_interval" not in model_checkpoint_params
-                ), "Remove either 'metric' or 'save_interval' from model_checkpoint_params: {}".format(
-                    model_checkpoint_params
+            minimize = model_checkpoint_params.pop("minimize", True)
+            save_interval = model_checkpoint_params.get("save_interval", None)
+            if not save_interval:
+                model_checkpoint_params.setdefault(
+                    "score_function", get_score_function("ema_loss", minimize=minimize)
                 )
-                assert (
-                    "score_function" not in model_checkpoint_params
-                ), "Remove either 'metric' or 'score_function' from model_checkpoint_params: {}".format(
-                    model_checkpoint_params
-                )
-                model_checkpoint_params["score_function"] = get_score_function(
-                    metric, metrics, minimize=minimize
-                )
+            model_checkpoint_params.setdefault("score_name", "ema_loss")
             mc = FlexibleModelCheckpoint(**model_checkpoint_params)
             trainer.add_event_handler(Events.EPOCH_COMPLETED, mc, {"model": model})
 
         if early_stopping_params:
             assert isinstance(early_stopping_params, dict)
             metric = early_stopping_params.pop("metric", None)
+            assert (metric is None) or (metric in evaluation_metrics)
             minimize = early_stopping_params.pop("minimize", False)
             if metric:
                 assert (
@@ -171,7 +163,7 @@ def neural_network_train(
                     early_stopping_params
                 )
                 early_stopping_params["score_function"] = get_score_function(
-                    metric, metrics, minimize=minimize
+                    metric, minimize=minimize
                 )
 
             es = EarlyStopping(trainer=trainer, **early_stopping_params)
@@ -197,7 +189,7 @@ def neural_network_train(
             progress_update.setdefault("persist", True)
             progress_update.setdefault("desc", "")
             pbar = ProgressBar(**progress_update)
-            pbar.attach(trainer, ["loss_ema"])
+            pbar.attach(trainer, ["ema_loss"])
 
         else:
 
@@ -270,17 +262,15 @@ def neural_network_train(
 
             mlflow_logger.log_params(logging_params)
 
-            metric_names = []
-
-            metric_names.append("loss")
+            batch_metric_names = ["batch_loss", "ema_loss"]
             if scheduler:
-                metric_names.append(scheduler_params.get("param_name"))
+                batch_metric_names.append(scheduler_params.get("param_name"))
 
             mlflow_logger.attach(
                 trainer,
                 log_handler=OutputHandler(
-                    tag="batch",
-                    metric_names=metric_names,
+                    tag="step",
+                    metric_names=batch_metric_names,
                     global_step_transform=global_step_from_engine(trainer),
                 ),
                 event_name=Events.ITERATION_COMPLETED,
@@ -291,7 +281,7 @@ def neural_network_train(
                     evaluator_train,
                     log_handler=OutputHandler(
                         tag="train",
-                        metric_names=list(metrics.keys()),
+                        metric_names=list(evaluation_metrics.keys()),
                         global_step_transform=global_step_from_engine(trainer),
                     ),
                     event_name=Events.COMPLETED,
@@ -301,7 +291,7 @@ def neural_network_train(
                     evaluator_val,
                     log_handler=OutputHandler(
                         tag="val",
-                        metric_names=list(metrics.keys()),
+                        metric_names=list(evaluation_metrics.keys()),
                         global_step_transform=global_step_from_engine(trainer),
                     ),
                     event_name=Events.COMPLETED,
@@ -322,9 +312,7 @@ def neural_network_train(
     return _neural_network_train
 
 
-def get_score_function(metric, metrics, minimize=False):
-    assert metric in metrics
-
+def get_score_function(metric, minimize=False):
     def _score_function(engine):
         m = engine.state.metrics.get(metric)
         return -m if minimize else m
