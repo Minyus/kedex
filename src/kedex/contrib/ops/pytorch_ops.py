@@ -582,7 +582,7 @@ def element_wise_average(tt_list):
     return torch.mean(torch.stack(tt_list), dim=0)
 
 
-class ModuleAverage(ModuleListMerge):
+class ModuleAvg(ModuleListMerge):
     def forward(self, input):
         tt_list = super().forward(input)
         assert len(set([tuple(list(tt.size())) for tt in tt_list])) == 1, (
@@ -621,15 +621,15 @@ class TensorMean(StatModule):
         return torch.mean(input, dim=self.dim, keepdim=self.keepdim)
 
 
-class TensorGlobalAvePool1d(Pool1dMixIn, TensorMean):
+class TensorGlobalAvgPool1d(Pool1dMixIn, TensorMean):
     pass
 
 
-class TensorGlobalAvePool2d(Pool2dMixIn, TensorMean):
+class TensorGlobalAvgPool2d(Pool2dMixIn, TensorMean):
     pass
 
 
-class TensorGlobalAvePool3d(Pool3dMixIn, TensorMean):
+class TensorGlobalAvgPool3d(Pool3dMixIn, TensorMean):
     pass
 
 
