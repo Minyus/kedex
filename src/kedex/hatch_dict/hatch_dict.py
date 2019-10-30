@@ -14,7 +14,7 @@ class HatchDict:
         support_nested_keys=True,  # type: bool
         self_lookup_key="obj",  # type: str
         support_import=True,  # type: bool
-        additional_import_modules=["__main__"],  # type: Union[List, str]
+        additional_import_modules=["kedex", "__main__"],  # type: Union[List, str]
         obj_key="obj",  # type: str
         eval_parentheses=True,  # type: bool
     ):
