@@ -564,7 +564,30 @@ class ModuleListMerge(ModuleSequential):
 
 class ModuleConcat(ModuleListMerge):
     def forward(self, input):
-        return torch.cat(super().forward(input), dim=1)
+        tt_list = super().forward(input)
+        assert len(set([tuple(list(tt.size())[2:]) for tt in tt_list])) == 1, (
+            "Sizes of tensors must match except in dimension 1. "
+            "\n{}\n got tensor sizes: \n{}\n".format(
+                self, [tt.size() for tt in tt_list]
+            )
+        )
+        return torch.cat(tt_list, dim=1)
+
+
+def element_wise_sum(tt_list):
+    return torch.sum(torch.stack(tt_list), dim=0)
+
+
+class ModuleSum(ModuleListMerge):
+    def forward(self, input):
+        tt_list = super().forward(input)
+        assert len(set([tuple(list(tt.size())) for tt in tt_list])) == 1, (
+            "Sizes of tensors must match. "
+            "\n{}\n got tensor sizes: \n{}\n".format(
+                self, [tt.size() for tt in tt_list]
+            )
+        )
+        return element_wise_sum(tt_list)
 
 
 def element_wise_average(tt_list):
@@ -573,7 +596,14 @@ def element_wise_average(tt_list):
 
 class ModuleAverage(ModuleListMerge):
     def forward(self, input):
-        return element_wise_average(super().forward(input))
+        tt_list = super().forward(input)
+        assert len(set([tuple(list(tt.size())) for tt in tt_list])) == 1, (
+            "Sizes of tensors must match. "
+            "\n{}\n got tensor sizes: \n{}\n".format(
+                self, [tt.size() for tt in tt_list]
+            )
+        )
+        return element_wise_average(tt_list)
 
 
 class StatModule(torch.nn.Module):
@@ -684,6 +714,150 @@ class TensorGlobalRangePool2d(Pool2dMixIn, TensorRange):
 
 class TensorGlobalRangePool3d(Pool3dMixIn, TensorRange):
     pass
+
+
+def to_array(input):
+    if not isinstance(input, (tuple, list)):
+        input = [input]
+    input = np.array(input)
+    return input
+
+
+def as_tuple(x):
+    return tuple(x) if isinstance(x, (list, type(np.array))) else x
+
+
+def setup_conv_params(
+    kernel_size=(1, 1),
+    dilation=None,
+    padding=None,
+    stride=None,
+    raise_error=False,
+    *args,
+    **kwargs
+):
+    kwargs["kernel_size"] = as_tuple(kernel_size)
+    if dilation is not None:
+        kwargs["dilation"] = as_tuple(dilation)
+
+    if padding is None:
+        d = dilation or 1
+        d = to_array(d)
+        k = to_array(kernel_size)
+        p, r = np.divmod(d * (k - 1), 2)
+        if raise_error and r:
+            raise ValueError(
+                "Invalid combination of kernel_size: {}, dilation: {}. "
+                "If dilation is odd, kernel_size must be even.".format(
+                    kernel_size, dilation
+                )
+            )
+        kwargs["padding"] = tuple(p)
+    else:
+        kwargs["padding"] = as_tuple(padding)
+
+    if stride is not None:
+        kwargs["stride"] = as_tuple(stride)
+
+    return args, kwargs
+
+
+class TensorConv1d(torch.nn.Conv1d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorConv2d(torch.nn.Conv2d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorConv3d(torch.nn.Conv3d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorMaxPool1d(torch.nn.MaxPool1d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorMaxPool2d(torch.nn.MaxPool2d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorMaxPool3d(torch.nn.MaxPool3d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorAvgPool1d(torch.nn.AvgPool1d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorAvgPool2d(torch.nn.AvgPool2d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class TensorAvgPool3d(torch.nn.AvgPool3d):
+    def __init__(self, *args, **kwargs):
+        args, kwargs = setup_conv_params(*args, **kwargs)
+        super().__init__(*args, **kwargs)
+
+
+class ModuleBottleneck2d(ModuleSequential):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=(1, 1),
+        stride=(1, 1),
+        mid_channels=None,
+        batch_norm=None,
+        activation=None,
+        **kwargs
+    ):
+        mid_channels = mid_channels or in_channels // 2 or 1
+        batch_norm = batch_norm or TensorSkip()
+        activation = activation or TensorSkip()
+        super().__init__(
+            TensorConv2d(
+                in_channels=in_channels,
+                out_channels=mid_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                **kwargs
+            ),
+            batch_norm,
+            activation,
+            TensorConv2d(
+                in_channels=mid_channels,
+                out_channels=mid_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                **kwargs
+            ),
+            batch_norm,
+            activation,
+            TensorConv2d(
+                in_channels=mid_channels,
+                out_channels=out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                **kwargs
+            ),
+        )
 
 
 class TensorSkip(torch.nn.Module):
