@@ -177,7 +177,13 @@ def _hatch(
     d.pop(obj_key)
     if d:
         assert callable(a)
-        d.pop(dummy_key, None)
+
+        pos_args = d.pop(dummy_key, None)
+        if pos_args is None:
+            pos_args = []
+        if not isinstance(pos_args, list):
+            pos_args = [pos_args]
+
         attribute_name = d.pop(".", None)
         for k in d:
             assert isinstance(
@@ -185,7 +191,7 @@ def _hatch(
             ), "Non-string key '{}' in '{}' is not valid for callable: '{}'.".format(
                 k, d, a.__name__
             )
-        d = a(**d)
+        d = a(*pos_args, **d)
         if attribute_name:
             d = getattr(d, attribute_name)
             # if isinstance(d, MethodType):
