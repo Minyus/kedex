@@ -871,6 +871,7 @@ class TensorExp(torch.nn.Module):
     def forward(self, input):
         return torch.exp(input)
 
+
 class TensorLog(torch.nn.Module):
     def forward(self, input):
         return torch.log(input)
@@ -936,6 +937,22 @@ class TensorCumsum(torch.nn.Module):
 
     def forward(self, input):
         return torch.cumsum(input, dim=self.dim)
+
+
+def nl_loss(input, *args, **kwargs):
+    return torch.nn.functional.nll_loss(input.log(), *args, **kwargs)
+
+
+class NLLoss(torch.nn.NLLLoss):
+    """ The negative likelihood loss.
+    To compute Cross Entropy Loss, there are 3 options.
+        NLLoss with torch.nn.Softmax
+        torch.nn.NLLLoss with torch.nn.LogSoftmax
+        torch.nn.CrossEntropyLoss
+    """
+
+    def forward(self, input, target):
+        return super().forward(input.log(), target)
 
 
 class TransformCompose:
