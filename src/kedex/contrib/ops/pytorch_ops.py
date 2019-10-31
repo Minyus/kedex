@@ -853,6 +853,29 @@ class TensorSkip(torch.nn.Module):
         return input
 
 
+class TensorIdentity(TensorSkip):
+    pass
+
+
+class TensorForward(torch.nn.Module):
+    def __init__(self, func=None):
+        func = func or (lambda x: x)
+        assert callable(func)
+        self._func = func
+
+    def forward(self, input):
+        return self._func(input)
+
+
+class TensorExp(torch.nn.Module):
+    def forward(self, input):
+        return torch.exp(input)
+
+class TensorLog(torch.nn.Module):
+    def forward(self, input):
+        return torch.log(input)
+
+
 class TensorFlatten(torch.nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)

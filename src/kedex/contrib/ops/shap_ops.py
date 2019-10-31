@@ -20,7 +20,7 @@ def explain_model(**kwargs):
             train_data_loader_params["batch_size"] = train_size
         if val_size:
             val_data_loader_params["batch_size"] = val_size
-        output_slice = kwargs.get("output_slice")
+        output_transform = kwargs.get("output_transform")
 
         train_loader = DataLoader(train_dataset, **train_data_loader_params)
         val_loader = DataLoader(val_dataset, **val_data_loader_params)
@@ -28,9 +28,8 @@ def explain_model(**kwargs):
         train_batch = next(iter(train_loader))
         val_batch = next(iter(val_loader))
 
-        if output_slice is not None:
-            assert isinstance(output_slice, dict)
-            model = torch.nn.Sequential(model, TensorSlice(**output_slice))
+        if output_transform is not None:
+            model = torch.nn.Sequential(model, output_transform)
         images = _explain_pytorch_model(model, train_batch, val_batch)
 
         return images
