@@ -539,13 +539,7 @@ class PartialDataset:
         return self.dataset[item]
 
 
-class ModuleSequential(torch.nn.Sequential):
-    def __init__(self, *args, modules=None):
-        modules = modules or args
-        super().__init__(*modules)
-
-
-class ModuleListMerge(ModuleSequential):
+class ModuleListMerge(torch.nn.Sequential):
     def forward(self, input):
         return [module.forward(input) for module in self._modules.values()]
 
@@ -804,7 +798,7 @@ class TensorAvgPool3d(torch.nn.AvgPool3d):
         super().__init__(*args, **kwargs)
 
 
-class ModuleBottleneck2d(ModuleSequential):
+class ModuleBottleneck2d(torch.nn.Sequential):
     def __init__(
         self,
         in_channels,
