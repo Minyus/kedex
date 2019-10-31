@@ -12,10 +12,10 @@ class HatchDict:
         egg,  # type: Union[dict, List]
         lookup={},  # type: dict
         support_nested_keys=True,  # type: bool
-        self_lookup_key="obj",  # type: str
+        self_lookup_key="=",  # type: str
         support_import=True,  # type: bool
         additional_import_modules=["kedex"],  # type: Union[List, str]
-        obj_key="obj",  # type: str
+        obj_key="=",  # type: str
         eval_parentheses=True,  # type: bool
     ):
         # type: (...) -> None
@@ -125,7 +125,7 @@ def _dfs_apply(
     support_import = hatch_args.get("support_import", False)  # type: bool
     default_module = hatch_args.get("default_module", "")  # type: str
     forcing_module = hatch_args.get("forcing_module", "")  # type: str
-    obj_key = hatch_args.get("obj_key", "obj")  # type: str
+    obj_key = hatch_args.get("obj_key", "=")  # type: str
 
     d = d_input
     s = d_input
@@ -141,12 +141,12 @@ def _dfs_apply(
         if obj_str:
             if obj_str in lookup:
                 a = lookup.get(obj_str)
-                d = _hatch(d, a, obj_key=obj_key, dummy_key="_")
+                d = _hatch(d, a, obj_key=obj_key)
             elif support_import:
                 if forcing_module:
                     obj_str = "{}.{}".format(forcing_module, obj_str.rsplit(".", 1)[-1])
                 a = load_obj(obj_str, default_obj_path=default_module)
-                d = _hatch(d, a, obj_key=obj_key, dummy_key="_")
+                d = _hatch(d, a, obj_key=obj_key)
 
     if isinstance(d_input, list):
 
@@ -171,20 +171,21 @@ def _dfs_apply(
 def _hatch(
     d,  # type: dict
     a,  # type: Any
-    obj_key="obj",  # type: str
-    dummy_key="_",
+    obj_key="=",  # type: str
+    pos_arg_key="_",  # type: str
+    attr_key=".",  # type: str
 ):
     d.pop(obj_key)
     if d:
         assert callable(a)
 
-        pos_args = d.pop(dummy_key, None)
+        pos_args = d.pop(pos_arg_key, None)
         if pos_args is None:
             pos_args = []
         if not isinstance(pos_args, list):
             pos_args = [pos_args]
 
-        attribute_name = d.pop(".", None)
+        attribute_name = d.pop(attr_key, None)
         for k in d:
             assert isinstance(
                 k, str
