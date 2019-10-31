@@ -8,12 +8,22 @@ from kedex import to_channel_last_arr, TensorSlice
 def explain_model(**kwargs):
     def _explain_model(model, train_dataset, val_dataset, *argsignore, **kwargsignore):
 
-        train_size = kwargs.get("train_size", 100)
-        val_size = kwargs.get("val_size", 3)
+        train_size = kwargs.get("train_size")
+        val_size = kwargs.get("val_size")
+        train_data_loader_params = kwargs.get(
+            "train_data_loader_params", dict(batch_size=100)
+        )
+        val_data_loader_params = kwargs.get(
+            "val_data_loader_params", dict(batch_size=3)
+        )
+        if train_size:
+            train_data_loader_params["batch_size"] = train_size
+        if val_size:
+            val_data_loader_params["batch_size"] = val_size
         output_slice = kwargs.get("output_slice")
 
-        train_loader = DataLoader(train_dataset, batch_size=train_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=val_size, shuffle=True)
+        train_loader = DataLoader(train_dataset, **train_data_loader_params)
+        val_loader = DataLoader(val_dataset, **val_data_loader_params)
 
         train_batch = next(iter(train_loader))
         val_batch = next(iter(val_loader))
