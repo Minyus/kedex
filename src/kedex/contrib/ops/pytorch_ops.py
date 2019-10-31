@@ -321,7 +321,7 @@ def get_score_function(metric, minimize=False):
 
 
 def load_latest_model(model_checkpoint_params=None):
-    if "model_checkpoint_params" in model_checkpoint_params:
+    if model_checkpoint_params and "model_checkpoint_params" in model_checkpoint_params:
         model_checkpoint_params = model_checkpoint_params.get("model_checkpoint_params")
 
     def _load_latest_model(model=None):
