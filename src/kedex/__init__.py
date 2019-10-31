@@ -11,6 +11,7 @@ from .contrib.io.pillow import *  # NOQA
 from .contrib.io.seaborn import *  # NOQA
 from .contrib.ops.pandas_ops import *  # NOQA
 from .contrib.ops.pytorch_ops import *  # NOQA
+from .contrib.ops.shap_ops import *  # NOQA
 from .contrib.ops.sklearn_ops import *  # NOQA
 from .hatch_dict.hatch_dict import *  # NOQA
 from .mlflow_context.mlflow_flexible_context import *  # NOQA
