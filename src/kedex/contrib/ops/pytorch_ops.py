@@ -744,58 +744,49 @@ def setup_conv_params(
     return args, kwargs
 
 
-class TensorConv1d(torch.nn.Conv1d):
+class ModuleConvWrap(torch.nn.Sequential):
+    core = None
+
     def __init__(self, *args, **kwargs):
         args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+        module = self.core(*args, **kwargs)
+        super().__init__(module)
 
 
-class TensorConv2d(torch.nn.Conv2d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorConv1d(ModuleConvWrap):
+    core = torch.nn.Conv1d
 
 
-class TensorConv3d(torch.nn.Conv3d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorConv2d(ModuleConvWrap):
+    core = torch.nn.Conv2d
 
 
-class TensorMaxPool1d(torch.nn.MaxPool1d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorConv3d(ModuleConvWrap):
+    core = torch.nn.Conv3d
 
 
-class TensorMaxPool2d(torch.nn.MaxPool2d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorMaxPool1d(ModuleConvWrap):
+    core = torch.nn.MaxPool1d
 
 
-class TensorMaxPool3d(torch.nn.MaxPool3d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorMaxPool2d(ModuleConvWrap):
+    core = torch.nn.MaxPool2d
 
 
-class TensorAvgPool1d(torch.nn.AvgPool1d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorMaxPool3d(ModuleConvWrap):
+    core = torch.nn.MaxPool3d
 
 
-class TensorAvgPool2d(torch.nn.AvgPool2d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorAvgPool1d(ModuleConvWrap):
+    core = torch.nn.AvgPool1d
 
 
-class TensorAvgPool3d(torch.nn.AvgPool3d):
-    def __init__(self, *args, **kwargs):
-        args, kwargs = setup_conv_params(*args, **kwargs)
-        super().__init__(*args, **kwargs)
+class TensorMaxPool2d(ModuleConvWrap):
+    core = torch.nn.MaxPool2d
+
+
+class TensorAvgPool3d(ModuleConvWrap):
+    core = torch.nn.AvgPool3d
 
 
 class ModuleBottleneck2d(torch.nn.Sequential):
