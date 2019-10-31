@@ -781,8 +781,8 @@ class TensorAvgPool1d(ModuleConvWrap):
     core = torch.nn.AvgPool1d
 
 
-class TensorMaxPool2d(ModuleConvWrap):
-    core = torch.nn.MaxPool2d
+class TensorAvgPool2d(ModuleConvWrap):
+    core = torch.nn.AvgPool2d
 
 
 class TensorAvgPool3d(ModuleConvWrap):
