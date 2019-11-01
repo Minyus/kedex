@@ -1,9 +1,12 @@
 Copyright 2019 Yusuke Minami (@Minyus)
+as the main author
 
-The base code for
-`run` method of `OnlyMissingOptionContext` class, `decorators.py`, and
-`.gitignore` file:
 Copyright 2018-2019 QuantumBlack Visual Analytics Limited
+regarding the following parts:
+- `load_obj` function copied from https://github.com/quantumblacklabs/kedro/blob/0.15.4/kedro/utils.py
+- `run` method copied from https://github.com/quantumblacklabs/kedro/blob/0.15.3/kedro/context/context.py
+- `contrib.decorators.decorators.py` copied from https://github.com/quantumblacklabs/kedro/blob/0.15.3/kedro/pipeline/decorators.py
+- `.gitignore` copied from https://github.com/quantumblacklabs/kedro/blob/0.15.3/kedro/template/%7B%7B%20cookiecutter.repo_name%20%7D%7D/.gitignore
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +22,9 @@ limitations under the License.
 
 
 
-`mlflow_logger.py` and `base_logger.py` copied from
-https://github.com/pytorch/ignite/tree/v0.2.1/ignite/contrib/handlers :
+Regarding the following parts:
+- `ignite.contrib.handlers.mlflow_logger.py` copied from https://github.com/pytorch/ignite/blob/v0.2.1/ignite/contrib/handlers/base_logger.py
+- `ignite.contrib.handlers.base_logger.py` copied from https://github.com/pytorch/ignite/blob/v0.2.1/ignite/contrib/handlers/mlflow_logger.py
 
 BSD 3-Clause License
 

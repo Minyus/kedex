@@ -1,9 +1,6 @@
-from flatten_dict import flatten
-from kedro.utils import load_obj
+import importlib
+from typing import Any, Union, List, Iterable  # NOQA
 from six import iteritems
-import operator
-from typing import Union, List, Iterable  # NOQA
-from types import MethodType
 
 
 class HatchDict:
@@ -203,6 +200,11 @@ def _hatch(
 
 
 def dot_flatten(d):
+    try:
+        from flatten_dict import flatten
+    except:
+        return d
+
     def dot_reducer(k1, k2):
         return k1 + "." + k2 if k1 else k2
 
@@ -226,3 +228,31 @@ def pass_func(arg):
 
 def _builtin_funcs():
     return dict(pass_=pass_, pass_through=pass_through, pass_func=pass_func)
+
+
+""" 
+Copyright 2018-2019 QuantumBlack Visual Analytics Limited
+regarding `load_obj` function copied from
+https://github.com/quantumblacklabs/kedro/blob/0.15.4/kedro/utils.py 
+"""
+
+
+def load_obj(obj_path: str, default_obj_path: str = "") -> Any:
+    """Extract an object from a given path.
+        Args:
+            obj_path: Path to an object to be extracted, including the object name.
+            default_obj_path: Default object path.
+        Returns:
+            Extracted object.
+        Raises:
+            AttributeError: When the object does not have the given named attribute.
+    """
+    obj_path_list = obj_path.rsplit(".", 1)
+    obj_path = obj_path_list.pop(0) if len(obj_path_list) > 1 else default_obj_path
+    obj_name = obj_path_list[0]
+    module_obj = importlib.import_module(obj_path)
+    if not hasattr(module_obj, obj_name):
+        raise AttributeError(
+            "Object `{}` cannot be loaded from `{}`.".format(obj_name, obj_path)
+        )
+    return getattr(module_obj, obj_name)
