@@ -92,6 +92,7 @@ class HatchDict:
 
         if isinstance(self.egg, dict):
             forcing_module = self.egg.get("FORCING_MODULE", "")
+            module_aliases = self.egg.get("MODULE_ALIASES", {})
 
         for m in self.additional_import_modules:
             d, s = _dfs_apply(
@@ -101,6 +102,7 @@ class HatchDict:
                     support_import=self.support_import,
                     default_module=m,
                     forcing_module=forcing_module,
+                    module_aliases=module_aliases,
                     obj_key=self.obj_key,
                 ),
             )
@@ -122,6 +124,7 @@ def _dfs_apply(
     support_import = hatch_args.get("support_import", False)  # type: bool
     default_module = hatch_args.get("default_module", "")  # type: str
     forcing_module = hatch_args.get("forcing_module", "")  # type: str
+    module_aliases = hatch_args.get("module_aliases", {})  # type: dict
     obj_key = hatch_args.get("obj_key", "=")  # type: str
 
     d = d_input
@@ -141,7 +144,17 @@ def _dfs_apply(
                 d = _hatch(d, a, obj_key=obj_key)
             elif support_import:
                 if forcing_module:
-                    obj_str = "{}.{}".format(forcing_module, obj_str.rsplit(".", 1)[-1])
+                    obj_path_list = obj_str.rsplit(".", 1)
+                    obj_str = "{}.{}".format(forcing_module, obj_path_list[-1])
+                if module_aliases:
+                    obj_path_list = obj_str.rsplit(".", 1)
+                    if len(obj_path_list) == 2 and obj_path_list[0] in module_aliases:
+                        module_alias = module_aliases.get(obj_path_list[0])
+                        if module_alias is None:
+                            obj_path_list.pop(0)
+                        else:
+                            obj_path_list[0] = module_alias
+                        obj_str = ".".join(obj_path_list)
                 a = load_obj(obj_str, default_obj_path=default_module)
                 d = _hatch(d, a, obj_key=obj_key)
 
