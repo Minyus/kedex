@@ -590,6 +590,11 @@ class ModuleAvg(ModuleListMerge):
 
 class StatModule(torch.nn.Module):
     def __init__(self, dim, keepdim=False):
+        if isinstance(dim, list):
+            dim = tuple(dim)
+        if isinstance(dim, int):
+            dim = (dim,)
+        assert isinstance(dim, tuple)
         self.dim = dim
         self.keepdim = keepdim
         super().__init__()
@@ -597,17 +602,17 @@ class StatModule(torch.nn.Module):
 
 class Pool1dMixIn:
     def __init__(self, keepdim=False):
-        super().__init__(dim=[2], keepdim=keepdim)
+        super().__init__(dim=(2,), keepdim=keepdim)
 
 
 class Pool2dMixIn:
     def __init__(self, keepdim=False):
-        super().__init__(dim=[3, 2], keepdim=keepdim)
+        super().__init__(dim=(3, 2), keepdim=keepdim)
 
 
 class Pool3dMixIn:
     def __init__(self, keepdim=False):
-        super().__init__(dim=[4, 3, 2], keepdim=keepdim)
+        super().__init__(dim=(4, 3, 2), keepdim=keepdim)
 
 
 class TensorMean(StatModule):
@@ -627,6 +632,23 @@ class TensorGlobalAvgPool3d(Pool3dMixIn, TensorMean):
     pass
 
 
+class TensorSum(StatModule):
+    def forward(self, input):
+        return torch.sum(input, dim=self.dim, keepdim=self.keepdim)
+
+
+class TensorGlobalSumPool1d(Pool1dMixIn, TensorSum):
+    pass
+
+
+class TensorGlobalSumPool2d(Pool2dMixIn, TensorSum):
+    pass
+
+
+class TensorGlobalSumPool3d(Pool3dMixIn, TensorSum):
+    pass
+
+
 class TensorMax(StatModule, torch.nn.Module):
     def forward(self, input):
         return tensor_max(input, dim=self.dim, keepdim=self.keepdim)
@@ -636,6 +658,8 @@ def tensor_max(input, dim, keepdim=False):
     if isinstance(dim, int):
         return torch.max(input, dim=dim, keepdim=keepdim)[0]
     else:
+        if isinstance(dim, tuple):
+            dim = list(dim)
         for d in dim:
             input = torch.max(input, dim=d, keepdim=keepdim)[0]
         return input
@@ -662,6 +686,8 @@ def tensor_min(input, dim, keepdim=False):
     if isinstance(dim, int):
         return torch.min(input, dim=dim, keepdim=keepdim)[0]
     else:
+        if isinstance(dim, tuple):
+            dim = list(dim)
         for d in dim:
             input = torch.min(input, dim=d, keepdim=keepdim)[0]
         return input
