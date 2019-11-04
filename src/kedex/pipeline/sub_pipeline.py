@@ -20,7 +20,11 @@ class SubPipeline(Pipeline):
 
         if isinstance(inputs, str):
             inputs = [inputs]
-        main_input = inputs[main_input_index]
+        if inputs:
+            main_input = inputs[main_input_index]
+        else:
+            inputs = []
+            main_input = None
         nodes = []
         for i, f in enumerate(funcs):
             output = (
