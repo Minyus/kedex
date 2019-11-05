@@ -773,10 +773,13 @@ def setup_conv_params(
 class ModuleConvWrap(torch.nn.Sequential):
     core = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, activation=None, *args, **kwargs):
         args, kwargs = setup_conv_params(*args, **kwargs)
         module = self.core(*args, **kwargs)
-        super().__init__(module)
+        if activation:
+            super().__init__(module, activation)
+        else:
+            super().__init__(module)
 
 
 class TensorConv1d(ModuleConvWrap):
