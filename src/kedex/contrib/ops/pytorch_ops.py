@@ -950,6 +950,34 @@ class TensorCumsum(torch.nn.Module):
         return torch.cumsum(input, dim=self.dim)
 
 
+class TensorClamp(torch.nn.Module):
+    def __init__(self, min=None, max=None):
+        super().__init__()
+        self.min = min
+        self.max = max
+
+    def forward(self, input):
+        return torch.clamp(input, min=self.min, max=self.max)
+
+
+class TensorClampMax(torch.nn.Module):
+    def __init__(self, max=None):
+        super().__init__()
+        self.max = max
+
+    def forward(self, input):
+        return torch.clamp_max(input, max=self.max)
+
+
+class TensorClampMin(torch.nn.Module):
+    def __init__(self, min=None):
+        super().__init__()
+        self.min = min
+
+    def forward(self, input):
+        return torch.clamp_min(input, min=self.min)
+
+
 def nl_loss(input, *args, **kwargs):
     return torch.nn.functional.nll_loss(input.log(), *args, **kwargs)
 
