@@ -1,6 +1,7 @@
 from importlib.util import find_spec
 from .hatch_dict.hatch_dict import *  # NOQA
 from .contrib.decorators.decorators import *  # NOQA
+from .contrib.ops.argparse_ops import *  # NOQA
 
 if find_spec("kedro"):
     from .pipeline.pipeline import *  # NOQA
