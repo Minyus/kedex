@@ -33,7 +33,8 @@ class SubPipeline(Pipeline):
                 else outputs
             )
             nodes.append(node(func=f, inputs=inputs[:], outputs=output))
-            inputs[main_input_index] = output
+            if i + 1 < len(funcs):
+                inputs[main_input_index] = output
 
         if decorator:
             decorators = _load_callables(decorator, module)
