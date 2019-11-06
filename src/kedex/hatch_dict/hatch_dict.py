@@ -239,6 +239,24 @@ def pass_func(arg):
     return _pass_func
 
 
+def feed(func, args):
+    assert callable(func)
+    if isinstance(args, dict):
+        posargs = args.pop("_", [])
+        kwargs = args
+    elif isinstance(args, (list, tuple)):
+        posargs = args
+        kwargs = dict()
+    else:
+        posargs = [args]
+        kwargs = dict()
+
+    def _feed(*argsignore, **kwargsignore):
+        return func(*posargs, **kwargs)
+
+    return _feed
+
+
 def _builtin_funcs():
     return dict(pass_=pass_, pass_through=pass_through, pass_func=pass_func)
 
