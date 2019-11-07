@@ -38,4 +38,7 @@ if find_spec("shap"):
 if find_spec("sklearn"):
     from .contrib.ops.sklearn_ops import *  # NOQA
 
+if find_spec("allennlp"):
+    from .contrib.ops.allennlp_ops import *  # NOQA
+
 __version__ = "0.0.9"
