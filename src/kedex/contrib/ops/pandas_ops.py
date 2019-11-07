@@ -20,7 +20,7 @@ def df_concat(**kwargs):
     def _df_concat(df_0, df_1, *argsignore, **kwargsignore):
         new_col_values = kwargs.get("new_col_values")  # type: List[str]
         new_col_name = kwargs.get("new_col_name")  # type: str
-        col_id = kwargs.get("col_id", "index")  # type: str
+        col_id = kwargs.get("col_id")  # type: str
         sort = kwargs.get("sort", False)  # type: bool
 
         if col_id:
@@ -40,7 +40,8 @@ def df_concat(**kwargs):
             keys=new_col_values,
             names=names,
         )
-        df_0.reset_index(inplace=True)
+        if new_col_name:
+            df_0.reset_index(inplace=True, level=new_col_name)
         return df_0
 
     return _df_concat
