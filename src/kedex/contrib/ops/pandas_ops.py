@@ -18,6 +18,8 @@ def df_merge(**kwargs):
 
 def df_concat(**kwargs):
     def _df_concat(df_0, df_1, *argsignore, **kwargsignore):
+        assert df_0 is not None and isinstance(df_0, pd.DataFrame)
+        assert df_1 is not None and isinstance(df_1, pd.DataFrame)
         new_col_values = kwargs.get("new_col_values")  # type: List[str]
         new_col_name = kwargs.get("new_col_name")  # type: str
         col_id = kwargs.get("col_id")  # type: str
@@ -409,3 +411,59 @@ def df_fillna(**kwargs):
         return df.fillna(**kwargs)
 
     return _df_fillna
+
+
+def _cols_apply(df, func, cols, kwargs):
+    assert callable(func)
+    assert isinstance(kwargs, dict)
+    if isinstance(cols, tuple):
+        cols = list(cols)
+    if not isinstance(cols, list):
+        cols = [cols]
+    for col in cols:
+        assert isinstance(col, str), "'{}' is not str.".format(col)
+        if col in df.columns:
+            df.loc[:, col] = func(df.loc[:, col], **kwargs)
+        else:
+            log.warning("'{}' not in the data frame.".format(col))
+    return df
+
+
+def df_to_datetime(cols=None, **kwargs):
+    def _df_to_datetime(df, *argsignore, **kwargsignore):
+        if cols:
+            df = _cols_apply(df, func=pd.to_datetime, cols=cols, kwargs=kwargs)
+        else:
+            df = pd.to_datetime(df, **kwargs)
+        return df
+
+    return _df_to_datetime
+
+
+def df_total_seconds(cols=None, **kwargs):
+    def _df_total_seconds(df, *argsignore, **kwargsignore):
+        assert cols
+        df = _cols_apply(df, func=pd.Series.dt.total_seconds, cols=cols, kwargs=kwargs)
+        return df
+
+    return _df_total_seconds
+
+
+def df_to_timedelta(cols=None, **kwargs):
+    def _df_to_timedelta(df, *argsignore, **kwargsignore):
+        assert cols
+        df = _cols_apply(df, func=pd.to_timedelta, cols=cols, kwargs=kwargs)
+        return df
+
+    return _df_to_timedelta
+
+
+def df_strftime(cols=None, **kwargs):
+    kwargs.setdefault("date_format", "%Y-%m-%dT%H:%M:%S")
+
+    def _df_strftime(df, *argsignore, **kwargsignore):
+        assert cols
+        df = _cols_apply(df, func=pd.Series.dt.strftime, cols=cols, kwargs=kwargs)
+        return df
+
+    return _df_strftime
