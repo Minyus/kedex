@@ -252,6 +252,15 @@ def df_query(**kwargs):
     return _df_query
 
 
+def df_eval(**kwargs):
+    def _df_eval(df, *argsignore, **kwargsignore):
+        kwargs.update(dict(inplace=True))
+        df.eval(**kwargs)
+        return df
+
+    return _df_eval
+
+
 def df_drop_duplicates(**kwargs):
     def _df_drop_duplicates(df, *argsignore, **kwargsignore):
         kwargs.update(dict(inplace=True))
@@ -338,6 +347,21 @@ def df_rename(**kwargs):
     return _df_rename
 
 
+def df_duplicate(**kwargs):
+    columns = kwargs.get("columns")
+    assert columns and isinstance(columns, dict)
+    col_list = list(columns.keys())
+
+    def _df_duplicate(df, *argsignore, **kwargsignore):
+        for col in col_list:
+            assert col in df.columns, "{} not in the data frame.".format(col)
+        new_df = df[col_list].rename(**kwargs)
+        df = pd.concat([df, new_df], axis=1, sort=False)
+        return df
+
+    return _df_duplicate
+
+
 def df_map(arg, prefix="", suffix="", **kwargs):
     assert isinstance(arg, dict)
 
@@ -411,6 +435,14 @@ def df_fillna(**kwargs):
         return df.fillna(**kwargs)
 
     return _df_fillna
+
+
+def df_cond_replace(cond, columns, value=np.nan, **kwargs):
+    def _df_cond_replace(df, *argsignore, **kwargsignore):
+        df.loc[df.eval(cond), columns] = value
+        return df
+
+    return _df_cond_replace
 
 
 def _cols_apply(df, func, cols, kwargs):
