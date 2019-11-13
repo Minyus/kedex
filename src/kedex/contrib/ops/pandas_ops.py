@@ -499,3 +499,27 @@ def df_strftime(cols=None, **kwargs):
         return df
 
     return _df_strftime
+
+
+def df_slice(**kwargs):
+    def _df_slice(df, *argsignore, **kwargsignore):
+        start = kwargs.get("start", 0)
+        end = kwargs.get("end", df.shape[0])
+        step = kwargs.get("step", 1)
+        return df.loc[start:end:step, :]
+
+    return _df_slice
+
+
+def df_head(**kwargs):
+    def _df_head(df, *argsignore, **kwargsignore):
+        return df.head(**kwargs)
+
+    return _df_head
+
+
+def df_tail(**kwargs):
+    def _df_tail(df, *argsignore, **kwargsignore):
+        return df.tail(**kwargs)
+
+    return _df_tail
