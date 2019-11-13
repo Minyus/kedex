@@ -91,35 +91,11 @@ def df_sample(**kwargs):
     return _df_sample
 
 
-def df_filter(**kwargs):
-    def _df_filter(df, *argsignore, **kwargsignore):
-        items = kwargs.get("items")
-        if items:
-            if isinstance(items, str):
-                items = [items]
-            assert isinstance(items, list), "'items' should be a list or string"
-            missing = [item for item in items if item not in df.columns]
-            if missing:
-                log.warning("filter could not find columns: {}".format(missing))
-            items = [item for item in items if item in df.columns]
-            kwargs.update(dict(items=items))
-        return df.filter(**kwargs)
-
-    return _df_filter
-
-
 def df_get_cols(**kwargs):
     def _df_get_cols(df, *argsignore, **kwargsignore):
         return df.columns.to_list()
 
     return _df_get_cols
-
-
-def df_filter_cols(**kwargs):
-    def _df_filter_cols(df, *argsignore, **kwargsignore):
-        return df_filter(**kwargs)(df, *argsignore, **kwargsignore).columns.to_list()
-
-    return _df_filter_cols
 
 
 def df_select_dtypes(**kwargs):
@@ -270,48 +246,6 @@ def df_drop_duplicates(**kwargs):
     return _df_drop_duplicates
 
 
-def df_apply(**kwargs):
-    def _df_apply(df, *argsignore, **kwargsignore):
-        return df.apply(**kwargs)
-
-    return _df_apply
-
-
-def df_applymap(**kwargs):
-    def _df_applymap(df, *argsignore, **kwargsignore):
-        return df.applymap(**kwargs)
-
-    return _df_applymap
-
-
-def df_pipe(**kwargs):
-    def _df_pipe(df, *argsignore, **kwargsignore):
-        return df.pipe(**kwargs)
-
-    return _df_pipe
-
-
-def df_agg(**kwargs):
-    def _df_agg(df, *argsignore, **kwargsignore):
-        return df.agg(**kwargs)
-
-    return _df_agg
-
-
-def df_aggregate(**kwargs):
-    def _df_aggregate(df, *argsignore, **kwargsignore):
-        return df.aggregate(**kwargs)
-
-    return _df_aggregate
-
-
-def df_transform(**kwargs):
-    def _df_transform(df, *argsignore, **kwargsignore):
-        return df.transform(**kwargs)
-
-    return _df_transform
-
-
 def df_groupby(**kwargs):
     def _df_groupby(df, *argsignore, **kwargsignore):
         return df.groupby(**kwargs)
@@ -319,25 +253,167 @@ def df_groupby(**kwargs):
     return _df_groupby
 
 
-def df_rolling(**kwargs):
+def _groupby(df, groupby, columns):
+    if groupby is not None:
+        if not isinstance(groupby, dict):
+            groupby = dict(by=groupby)
+        df = df.groupby(**groupby)
+    if columns is not None:
+        df = df[columns]
+    return df
+
+
+def df_transform(groupby=None, columns=None, **kwargs):
+    def _df_transform(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.transform(**kwargs)
+
+    return _df_transform
+
+
+def df_apply(groupby=None, columns=None, **kwargs):
+    def _df_apply(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.apply(**kwargs)
+
+    return _df_apply
+
+
+def df_applymap(groupby=None, columns=None, **kwargs):
+    def _df_applymap(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.applymap(**kwargs)
+
+    return _df_applymap
+
+
+def df_pipe(groupby=None, columns=None, **kwargs):
+    def _df_pipe(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.pipe(**kwargs)
+
+    return _df_pipe
+
+
+def df_agg(groupby=None, columns=None, **kwargs):
+    def _df_agg(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.agg(**kwargs)
+
+    return _df_agg
+
+
+def df_aggregate(groupby=None, columns=None, **kwargs):
+    def _df_aggregate(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.aggregate(**kwargs)
+
+    return _df_aggregate
+
+
+def df_rolling(groupby=None, columns=None, **kwargs):
     def _df_rolling(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
         return df.rolling(**kwargs)
 
     return _df_rolling
 
 
-def df_expanding(**kwargs):
+def df_expanding(groupby=None, columns=None, **kwargs):
     def _df_expanding(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
         return df.expanding(**kwargs)
 
     return _df_expanding
 
 
-def df_ewm(**kwargs):
+def df_ewm(groupby=None, columns=None, **kwargs):
     def _df_ewm(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
         return df.ewm(**kwargs)
 
     return _df_ewm
+
+
+def df_filter(groupby=None, columns=None, **kwargs):
+    def _df_filter(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        items = kwargs.get("items")
+        if items:
+            if isinstance(items, str):
+                items = [items]
+            assert isinstance(items, list), "'items' should be a list or string"
+            missing = [item for item in items if item not in df.columns]
+            if missing:
+                log.warning("filter could not find columns: {}".format(missing))
+            items = [item for item in items if item in df.columns]
+            kwargs.update(dict(items=items))
+        return df.filter(**kwargs)
+
+    return _df_filter
+
+
+def df_filter_cols(**kwargs):
+    def _df_filter_cols(df, *argsignore, **kwargsignore):
+        return df_filter(**kwargs)(df, *argsignore, **kwargsignore).columns.to_list()
+
+    return _df_filter_cols
+
+
+def df_fillna(groupby=None, columns=None, **kwargs):
+    def _df_fillna(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.fillna(**kwargs)
+
+    return _df_fillna
+
+
+def df_head(groupby=None, columns=None, **kwargs):
+    def _df_head(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.head(**kwargs)
+
+    return _df_head
+
+
+def df_tail(groupby=None, columns=None, **kwargs):
+    def _df_tail(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.tail(**kwargs)
+
+    return _df_tail
+
+
+def df_shift(groupby=None, columns=None, **kwargs):
+    def _df_shift(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.shift(**kwargs)
+
+    return _df_shift
+
+
+def df_resample(groupby=None, columns=None, **kwargs):
+    def _df_resample(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.resample(**kwargs)
+
+    return _df_resample
+
+
+def df_ngroup(groupby=None, columns=None, **kwargs):
+    def _df_ngroup(df, *argsignore, **kwargsignore):
+        df = _groupby(df, groupby, columns)
+        return df.ngroup(**kwargs)
+
+    return _df_ngroup
+
+
+def df_cond_replace(cond, columns, value=np.nan, **kwargs):
+    def _df_cond_replace(df, *argsignore, **kwargsignore):
+        df.loc[df.eval(cond), columns] = value
+        return df
+
+    return _df_cond_replace
 
 
 def df_rename(**kwargs):
@@ -430,21 +506,6 @@ def df_row_apply(func, **kwargs):
     return _df_row_apply
 
 
-def df_fillna(**kwargs):
-    def _df_fillna(df, *argsignore, **kwargsignore):
-        return df.fillna(**kwargs)
-
-    return _df_fillna
-
-
-def df_cond_replace(cond, columns, value=np.nan, **kwargs):
-    def _df_cond_replace(df, *argsignore, **kwargsignore):
-        df.loc[df.eval(cond), columns] = value
-        return df
-
-    return _df_cond_replace
-
-
 def _cols_apply(df, func, cols, kwargs):
     assert callable(func)
     assert isinstance(kwargs, dict)
@@ -509,17 +570,3 @@ def df_slice(**kwargs):
         return df.loc[start:end:step, :]
 
     return _df_slice
-
-
-def df_head(**kwargs):
-    def _df_head(df, *argsignore, **kwargsignore):
-        return df.head(**kwargs)
-
-    return _df_head
-
-
-def df_tail(**kwargs):
-    def _df_tail(df, *argsignore, **kwargsignore):
-        return df.tail(**kwargs)
-
-    return _df_tail
