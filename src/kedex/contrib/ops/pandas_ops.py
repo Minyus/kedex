@@ -570,3 +570,22 @@ def df_slice(**kwargs):
         return df.loc[start:end:step, :]
 
     return _df_slice
+
+
+def df_homogenize(**kwargs):
+    def _df_homogenize(df):
+        groupby = kwargs.get("groupby")
+        columns = kwargs.get("columns")
+        cond = kwargs.get("cond")
+        if isinstance(columns, dict):
+            df = df_duplicate(columns=columns)(df)
+            columns_list = list(columns.values())
+        else:
+            columns_list = columns
+        df = df_cond_replace(cond=cond, columns=columns_list, value=np.nan)(df)
+        df[columns_list] = df_transform(
+            groupby=groupby, columns=columns_list, func="max"
+        )(df)
+        return df
+
+    return _df_homogenize
