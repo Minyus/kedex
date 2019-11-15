@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 
 from torch.utils.data import DataLoader
+import ignite
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import RunningAverage
 from ignite.handlers import EarlyStopping, ModelCheckpoint
@@ -17,34 +18,41 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def neural_network_train(
-    train_params,  # type: dict
-    mlflow_logging=True,  # type: bool
-):
-    if mlflow_logging:
-        try:
-            import mlflow
-        except ImportError:
-            log.warning("Failed to import mlflow. MLflow logging is disabled.")
-            mlflow_logging = False
+class NetworkTrain:
+    def __init__(
+        self,
+        train_params,  # type: dict
+        mlflow_logging=True,  # type: bool
+    ):
+        self.train_params = train_params
+        self.mlflow_logging = mlflow_logging
 
-    if mlflow_logging:
-        import ignite
+    def __call__(self, model, train_dataset, val_dataset=None, parameters=None):
 
-        if parse_version(ignite.__version__) >= parse_version("0.2.1"):
-            from ignite.contrib.handlers.mlflow_logger import (
-                MLflowLogger,
-                OutputHandler,
-                global_step_from_engine,
-            )
-        else:
-            from .ignite.contrib.handlers.mlflow_logger import (
-                MLflowLogger,
-                OutputHandler,
-                global_step_from_engine,
-            )
+        train_params = self.train_params
+        mlflow_logging = self.mlflow_logging
 
-    def _neural_network_train(model, train_dataset, val_dataset=None, parameters=None):
+        if mlflow_logging:
+            try:
+                import mlflow
+            except ImportError:
+                log.warning("Failed to import mlflow. MLflow logging is disabled.")
+                mlflow_logging = False
+
+        if mlflow_logging:
+
+            if parse_version(ignite.__version__) >= parse_version("0.2.1"):
+                from ignite.contrib.handlers.mlflow_logger import (
+                    MLflowLogger,
+                    OutputHandler,
+                    global_step_from_engine,
+                )
+            else:
+                from .ignite.contrib.handlers.mlflow_logger import (
+                    MLflowLogger,
+                    OutputHandler,
+                    global_step_from_engine,
+                )
 
         train_dataset_size_limit = train_params.get("train_dataset_size_limit")
         val_dataset_size_limit = train_params.get("val_dataset_size_limit")
@@ -308,8 +316,6 @@ def neural_network_train(
         model = load_latest_model(model_checkpoint_params)(model)
 
         return model
-
-    return _neural_network_train
 
 
 def get_score_function(metric, minimize=False):
