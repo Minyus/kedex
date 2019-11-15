@@ -1,8 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-
-from kedex import to_channel_last_arr, TensorSlice
+from .pytorch_ops import to_channel_last_arr
 
 
 def explain_model(**kwargs):

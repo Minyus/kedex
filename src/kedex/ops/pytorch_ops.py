@@ -1,9 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-
 import torch
-
 from torch.utils.data import DataLoader
 import ignite
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator

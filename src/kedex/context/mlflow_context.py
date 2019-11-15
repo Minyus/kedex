@@ -1,10 +1,10 @@
 from kedro.context import KedroContext
-from kedex.context.flexible_context import FlexibleContext
+from .flexible_context import FlexibleContext
 from datetime import datetime, timedelta
 from mlflow import log_artifact, log_metric, log_param
 from pathlib import Path
 import time
-from typing import Any, Dict, Iterable, Optional, Union  # NOQA
+from typing import Any, Iterable  # NOQA
 import logging
 
 log = logging.getLogger(__name__)

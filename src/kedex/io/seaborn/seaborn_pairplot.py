@@ -1,12 +1,9 @@
 import copy
 from pathlib import Path
 from typing import Any, Dict, List
-
 import pandas as pd
 import seaborn as sns
-from math import ceil
 import matplotlib.pyplot as plt
-
 from kedro.contrib.io import DefaultArgumentsMixIn
 from kedro.io.core import AbstractVersionedDataSet, DataSetError, Version
 import logging

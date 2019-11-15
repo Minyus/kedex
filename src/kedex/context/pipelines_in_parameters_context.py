@@ -2,7 +2,7 @@ from typing import Dict, Iterable, Type
 from importlib import import_module
 from kedro.context import KedroContext, KedroContextError
 from kedro.pipeline import Pipeline  # NOQA
-from kedex.hatch_dict.hatch_dict import HatchDict
+from ..hatch_dict.hatch_dict import HatchDict
 
 
 class PipelinesInParametersContext(KedroContext):

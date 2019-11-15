@@ -2,10 +2,8 @@ from ...ops.pytorch_ops import to_channel_first_arr, to_channel_last_arr
 import copy
 from pathlib import Path
 from typing import Any, Dict, List, Union
-
 import numpy as np
 from PIL import Image
-
 from kedro.contrib.io import DefaultArgumentsMixIn
 from kedro.io.core import AbstractVersionedDataSet, DataSetError, Version
 import logging

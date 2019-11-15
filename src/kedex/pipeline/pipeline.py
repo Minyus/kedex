@@ -1,13 +1,12 @@
-from kedro.pipeline import Pipeline
-from kedro.pipeline.node import Node
+import kedro
 from .sub_pipeline import SubPipeline
 from typing import Callable, Union, List, Iterable  # NOQA
 
 
-class KedexPipeline(Pipeline):
+class FlexiblePipeline(kedro.pipeline.Pipeline):
     def __init__(
         self,
-        nodes,  # type: Iterable[Union[Node, "Pipeline", "KedroPipeline"]]
+        nodes,  # type: Iterable[Union[kedro.pipeline.node.Node, "Pipeline", "KedroPipeline"]]
         *,
         parameters_in_inputs=False,  # type: bool
         main_input_index=0,  # type: int
