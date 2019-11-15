@@ -6,7 +6,7 @@ from typing import Callable, Union, List, Iterable  # NOQA
 class FlexiblePipeline(kedro.pipeline.Pipeline):
     def __init__(
         self,
-        nodes,  # type: Iterable[Union[kedro.pipeline.node.Node, "Pipeline", "KedroPipeline"]]
+        nodes,  # type: Iterable[Union[SubPipeline, kedro.pipeline.Pipeline, kedro.pipeline.node.Node]]
         *,
         parameters_in_inputs=False,  # type: bool
         main_input_index=0,  # type: int
