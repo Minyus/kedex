@@ -41,4 +41,4 @@ if find_spec("sklearn"):
 if find_spec("allennlp"):
     from .contrib.ops.allennlp_ops import *  # NOQA
 
-__version__ = "0.0.9"
+__version__ = "0.1.0"
