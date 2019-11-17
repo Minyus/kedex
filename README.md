@@ -4,5 +4,7 @@
 https://badge.fury.io/py/kedex
 )
 
-Kedro extension for rapid prototyping and experimentation
+This package was renamed to PipelineX and updated at:
+
+https://github.com/Minyus/pipelinex
 
